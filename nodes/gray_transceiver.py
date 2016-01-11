@@ -1,14 +1,26 @@
+#!/usr/bin/env python
+
 import rospy
 import socket
-from queue import *
+import threading
+from Queue import *
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
-META_PORT = 1           #possibly change this to a parameter
-MY_NAME = rospy.get_param("gray_transceiver/my_name", "NOTCHANGED")
+#possibly rename this base port
+META_PORT = 1025           #possibly change this to a parameter
+MY_NAME = rospy.get_param("gray_transceiver/my_name", "robot")#"NOTCHANGED")
 TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
+
+#######################################################################
+#Please remove this part after the proof of concept testing.........
+PoC_ODOM_Port = 2000   #this needs to be removed after PoC testing
+PoC_LIDAR_Port = 3000  #this needs to be removed after PoC testing
+#More needs to be removed far down
+#######################################################################
+
 
 
 #####################################
@@ -44,6 +56,7 @@ def recvQueSocket(sock, queue, maxsize = 1024):
 class gray_transceiver(object):
 
     def __init__(self):
+        print("here 1")
         rospy.init_node("gray_transceiver")
         self.requestQ = Queue(10)
         self.metaSockQ = Queue(20)
@@ -55,6 +68,9 @@ class gray_transceiver(object):
         self.nextPort = 2
         self.names = []
         self.requested = {}
+
+        #this might be removed after PoC, currently unsure
+        self.waitingFor = []
 
         #translate the IP address to the name of the sender
         self.ADDR2NAME = {}
@@ -75,6 +91,7 @@ class gray_transceiver(object):
 
 
         self.socks["meta"].sendto('NEW~'+MY_NAME, (MCAST_GRP, META_PORT))
+        print("here 2")
 
     #look into seeing if the message can just be pu directly in the queue
     def requests_callback(self, data):
@@ -196,6 +213,33 @@ class gray_transceiver(object):
                             self.threadsLaunched[messages[1]].daemon = True
                             self.threadsLaunched[messages[1]].start()
 
+                elif messages[0] == "IHAVE":
+                    
+                    #check against a list of messages you want but haven't heard back about yet
+                    #if someone has something you want, set a timer, for a small amount of time,
+                    #   after the timer goes off, if no one has said they are already txing it, 
+                    #   send out a poll for the next port to use
+                    #may also want the Txing to keep a dictionary of each that it has seen, with the port as the key
+
+                    ###############################################################################
+                    #please remove this part after PoC testing
+                    #are you waiting for the thing someone offered?
+                    if messages[1] in self.waitingFor:
+                        portToUse = META_PORT+1
+                        if messages[1] == "LIDAR":
+                            portToUse = PoC_LIDAR_Port
+                        if messages[1] == "ODOM":
+                            portToUse = PoC_ODOM_Port
+
+                        self.socks["meta"].sendto("SEND~"+messages[1]+"~"+str(portToUse), (MCAST_GRP, META_PORT))
+
+
+                    ###############################################################################
+
+                #max port number is 65535
+
+
+
             if not self.requestQ.empty():
                 newRequest = self.requestQ.get()
                 newRequest = newRequest.split("~")
@@ -210,9 +254,11 @@ class gray_transceiver(object):
                 msgTypes = newRequest[1].split("/")
                 while "/" in msgTypes:
                     msgTypes.remove("/")
-                myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1])
+                myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
                 self.requested[newRequest[0]] = myType
+
+                self.waitingFor.append(myType) #might be able to remove after PoC testing
 
             rospy.sleep(0.1)                    # sleep briefly so ROS doesn't die
 

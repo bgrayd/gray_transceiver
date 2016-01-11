@@ -1,0 +1,16 @@
+<launch>
+    <arg name="use_sim_time" default="true"/>
+    
+    <node pkg="stage_ros" type="stageros" name="stageros" args="$(find gray_transceiver)/nodes/PoC_testing/worlds/map.world" respawn="false" output="screen" />
+    
+    <node pkg="gray_transceiver" type="basicObstacleAvoidance.py" name="simRobotMove"/>
+
+    <node pkg="gmapping" type="slam_gmapping" name="gmapping_thing" output="screen" >
+        <remap from="scan" to="/base_scan" />
+    </node>
+
+    <node pkg="gray_transceiver" type="gray_transceiver.py" name="my_gray_transceiver">
+        <remap from="/scan" to="/base_scan" />
+    </node>
+
+</launch>
