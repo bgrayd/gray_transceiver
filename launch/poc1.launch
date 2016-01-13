@@ -5,11 +5,15 @@
     
     <node pkg="gray_transceiver" type="basicObstacleAvoidance.py" name="simRobotMove"/>
 
+    <node pkg="gray_transceiver" type="requestor.py" name="requestor"/>
+
+
     <node pkg="gmapping" type="slam_gmapping" name="gmapping_thing" output="screen" >
-        <remap from="scan" to="/base_scan" />
+        <remap from="scan" to="/me/LIDAR" /><!--"/base_scan" />-->
+        <remap from="/map" to="/my_map" />
     </node>
 
-    <node pkg="gray_transceiver" type="gray_transceiver.py" name="my_gray_transceiver">
+    <node pkg="gray_transceiver" type="gray_transceiver.py" name="gray_transceiver" required="true">
         <remap from="/scan" to="/base_scan" />
     </node>
 

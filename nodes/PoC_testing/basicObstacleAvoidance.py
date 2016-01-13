@@ -14,9 +14,9 @@ class sandbox_2(object):
 		'''
 		Constructor for sandbox_2 class.
 		'''
-		rospy.init_node("sandbox_2")									# initialize this as a ROS node named 'sandbox_2'
-		self.cmd_vel_pub = rospy.Publisher("cmd_vel", Twist)			# create publisher that can be used to publish twist messages over /cmd_vel topic
-		rospy.Subscriber("base_scan", LaserScan, self.laser_callback) 	# subscribe to /base_scan topic using self.laser_callback as the callback function
+		rospy.init_node("sandbox_2")										# initialize this as a ROS node named 'sandbox_2'
+		self.cmd_vel_pub = rospy.Publisher("cmd_vel", Twist, queue_size=10)	# create publisher that can be used to publish twist messages over /cmd_vel topic
+		rospy.Subscriber("base_scan", LaserScan, self.laser_callback) 		# subscribe to /base_scan topic using self.laser_callback as the callback function
 
 		self.obstacle_detected = False 	# this variable will keep track of whether or not the robot currently sees an obstacle
 		self.rightWall = False #keep track of if it can see something on the right side
