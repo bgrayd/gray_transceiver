@@ -46,6 +46,8 @@ def recvPubSocket(sock, addr2Name, topicName, messageType, metaTopic, maxsize = 
         if senderDomain in publishers:
             publishers[senderDomain].publish(data)
         else:
+            metaTopic.publish(str(type(data)))
+            metaTopic.publish(str(messageType))
             publishers[senderDomain] = rospy.Publisher(str(senderDomain)+'/'+str(topicName), messageType, queue_size=10)
             metaTopic.publish(str(senderDomain)+'/'+str(topicName))
             publishers[senderDomain].publish(data)
@@ -256,11 +258,11 @@ class gray_transceiver(object):
                         self.debugTopic.publish(temp)
                         tempSock = self.socks[messages[1]]
                         tempPort = int(messages[2])
-                        def dynamicCallback(data):
+                        def dynamicCallback(data, port=tempPort):#default arguments are evaluated when the function is created, not called 
                             #PoC test, change the pickle
                             #self.socks[messages[1]].sendto(data, (MCAST_GRP, messages[2]))
                             global MCAST_GRP
-                            tempSock.sendto(pickle.dumps(data), (MCAST_GRP, tempPort))
+                            tempSock.sendto(pickle.dumps(data), (MCAST_GRP, int(port)))
 
                         self.socks["meta"].sendto("TXING~"+messages[1]+"~"+messages[2], (MCAST_GRP, META_PORT))
                         if messages[1] == "LIDAR":
@@ -298,6 +300,7 @@ class gray_transceiver(object):
                             self.socks[messages[1]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[messages[1]].bind((MCAST_GRP, int(messages[2])))#"224.1.1.1" , 2000))
 
+                            self.metaTopic.publish(str(self.requested[messages[1]]))
                             self.threadsLaunched[messages[1]] = threading.Thread(target=recvPubSocket, args=(self.socks[messages[1]], self.ADDR2NAME, messages[1], self.requested[messages[1]], self.metaTopic))
                             self.threadsLaunched[messages[1]].daemon = True
                             self.threadsLaunched[messages[1]].start()
@@ -361,7 +364,6 @@ class gray_transceiver(object):
 
 
                 myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
-
 
                 self.requested[newRequest[0]] = myType
 
