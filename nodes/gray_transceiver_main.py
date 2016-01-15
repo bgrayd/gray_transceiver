@@ -8,6 +8,7 @@ from Queue import *
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
+from gray_transceiver.msg import GxRequest
 
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
 #possibly rename this base port
@@ -105,7 +106,7 @@ class gray_transceiver(object):
         self.threadsLaunched["meta"].start()
 
         self.metaTopic = rospy.Publisher(METATOPICNAME, String, queue_size = 10)
-        rospy.Subscriber("gray_transceiver/requests", String, self.requests_callback)
+        rospy.Subscriber("gray_transceiver/requests", GxRequest, self.requests_callback)
 
         self.socks["meta"].sendto('NEW~'+MY_NAME, (MCAST_GRP, META_PORT))
 
@@ -117,7 +118,7 @@ class gray_transceiver(object):
         temp = String()
         temp.data = "in callback"
         self.debugTopic.publish(temp)
-        self.requestQ.put(data.data)
+        self.requestQ.put(data)
         
     def run(self):
         global MY_NAME
@@ -298,7 +299,7 @@ class gray_transceiver(object):
                             self.socks[messages[1]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
                             self.socks[messages[1]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
                             self.socks[messages[1]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                            self.socks[messages[1]].bind((MCAST_GRP, int(messages[2])))#"224.1.1.1" , 2000))
+                            self.socks[messages[1]].bind((MCAST_GRP, int(messages[2])))
 
                             self.metaTopic.publish(str(self.requested[messages[1]]))
                             self.threadsLaunched[messages[1]] = threading.Thread(target=recvPubSocket, args=(self.socks[messages[1]], self.ADDR2NAME, messages[1], self.requested[messages[1]], self.metaTopic))
@@ -345,19 +346,13 @@ class gray_transceiver(object):
                 self.debugTopic.publish(temp)
                 
                 newRequest = self.requestQ.get()
-                newRequest = newRequest.split("~")
-                #later on, have more than just type, such as when received locally publish on 1 topic total or 1 per source
-                #   also possibly metaish data about it
-                #   currently name~type
-                while "~" in newRequest:
-                    newRequest.remove("~")
 
 
-                self.socks["meta"].sendto("REQUEST~"+newRequest[0],(MCAST_GRP, META_PORT))
+                self.socks["meta"].sendto("REQUEST~"+newRequest.description,(MCAST_GRP, META_PORT))
 
 
                 #need to catch when there isn't a [1]
-                msgTypes = newRequest[1].split("/")
+                msgTypes = newRequest.type.split("/")
 
                 while "/" in msgTypes:
                     msgTypes.remove("/")
@@ -365,11 +360,14 @@ class gray_transceiver(object):
 
                 myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
-                self.requested[newRequest[0]] = myType
+                self.requested[newRequest.description] = myType
 
-                self.waitingFor.append(newRequest[0]) #might be able to remove after PoC testing
+                self.waitingFor.append(newRequest.description) #might be able to remove after PoC testing
 
-            rate.sleep()#rospy.sleep(0.01)                    # sleep briefly so ROS doesn't die
+            if self.metaSockQ.empty() and self.requestQ.empty():
+                rate.sleep()                        # nothing to process yet, sleep longer
+            else:
+                rospy.sleep(0.01)                   # sleep briefly so ROS doesn't die
 
 
 

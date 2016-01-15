@@ -2,6 +2,7 @@
 
 import rospy
 from std_msgs.msg import String
+from gray_transceiver.msg import GxRequest
 
 class requestor(object):
 
@@ -10,7 +11,7 @@ class requestor(object):
         Constructor for requestor class.
         '''
         rospy.init_node("requestor")
-        self.request_pub = rospy.Publisher("gray_transceiver/requests", String, queue_size=10)
+        self.request_pub = rospy.Publisher("gray_transceiver/requests", GxRequest, queue_size=10)
 
         
     def run(self):
@@ -18,20 +19,15 @@ class requestor(object):
         Do the initial requests and then do nothing
         '''
         rospy.sleep(15)
-        # message = String()
-        # message.data = "ODOM"
-        # self.request_pub.publish(message)
-        # print("published ODOM")
-        # message.data = "LIDAR"
-        # self.request_pub.publish(message)
-        # print("Published LIDAR")
 
         while not rospy.is_shutdown():
-            message = String()
-            message.data = "ODOM~nav_msgs/Odometry"
+            message = GxRequest()
+            message.description = "ODOM"
+            message.type = "nav_msgs/Odometry"
             self.request_pub.publish(message)
             print("published ODOM")
-            message.data = "LIDAR~sensor_msgs/LaserScan"
+            message.description = "LIDAR"
+            message.type = "sensor_msgs/LaserScan"
             self.request_pub.publish(message)
             print("Published LIDAR")
             rospy.spin()#sleep(0.5)
