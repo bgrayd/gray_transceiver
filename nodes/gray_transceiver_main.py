@@ -8,7 +8,7 @@ from Queue import *
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
-from gray_transceiver.msg import GxRequest
+from gray_transceiver.msg import GxRequest, GxMetaTopic
 
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
 #possibly rename this base port
@@ -35,7 +35,6 @@ def recvPubSocket(sock, addr2Name, topicName, messageType, metaTopic, maxsize = 
     while True:
         try:
             data2, addr = sock.recvfrom(maxsize)
-            # metaTopic.publish(str(data2))
             data = pickle.loads(data2)
         except socket.error, e:
             print 'Exception'
@@ -47,10 +46,11 @@ def recvPubSocket(sock, addr2Name, topicName, messageType, metaTopic, maxsize = 
         if senderDomain in publishers:
             publishers[senderDomain].publish(data)
         else:
-            metaTopic.publish(str(type(data)))
-            metaTopic.publish(str(messageType))
+            newMsg = GxMetaTopic()
+            newMsg.name = str(senderDomain)+'/'+str(topicName)
+            newMsg.type = str(messageType)
             publishers[senderDomain] = rospy.Publisher(str(senderDomain)+'/'+str(topicName), messageType, queue_size=10)
-            metaTopic.publish(str(senderDomain)+'/'+str(topicName))
+            metaTopic.publish(newMsg)
             publishers[senderDomain].publish(data)
         rate.sleep()
 
@@ -105,7 +105,7 @@ class gray_transceiver(object):
         self.threadsLaunched["meta"].daemon = True
         self.threadsLaunched["meta"].start()
 
-        self.metaTopic = rospy.Publisher(METATOPICNAME, String, queue_size = 10)
+        self.metaTopic = rospy.Publisher(METATOPICNAME, GxMetaTopic, queue_size = 10)
         rospy.Subscriber("gray_transceiver/requests", GxRequest, self.requests_callback)
 
         self.socks["meta"].sendto('NEW~'+MY_NAME, (MCAST_GRP, META_PORT))
@@ -301,7 +301,7 @@ class gray_transceiver(object):
                             self.socks[messages[1]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[messages[1]].bind((MCAST_GRP, int(messages[2])))
 
-                            self.metaTopic.publish(str(self.requested[messages[1]]))
+                            # self.metaTopic.publish(str(self.requested[messages[1]]))
                             self.threadsLaunched[messages[1]] = threading.Thread(target=recvPubSocket, args=(self.socks[messages[1]], self.ADDR2NAME, messages[1], self.requested[messages[1]], self.metaTopic))
                             self.threadsLaunched[messages[1]].daemon = True
                             self.threadsLaunched[messages[1]].start()
