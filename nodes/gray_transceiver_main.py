@@ -14,6 +14,10 @@ from gray_transceiver.msg import GxRequest, GxMetaTopic
 from rospy_message_converter import message_converter, json_message_converter
 
 
+from uuid import getnode as get_mac 
+MY_MAC_ADDR = get_mac()
+
+
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
 #possibly rename this base port
 META_PORT = 1025           #possibly change this to a parameter
@@ -40,11 +44,13 @@ def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxs
     while True:
         try:
             data2, addr = sock.recvfrom(maxsize)
-            data = json_message_converter.convert_json_to_ros_message(messageTypeString, data2)
+            message = json.loads(data2)
+            data = message_converter.convert_dictionary_to_ros_message(messageTypeString, message["data"])
+            senderDomain = message["SENDER"]
         except socket.error, e:
             print 'Exception'
             continue
-        senderDomain = addr2Name[str(addr[0])]
+        
         if senderDomain in publishers:
             publishers[senderDomain].publish(data)
         else:
@@ -65,7 +71,7 @@ def recvQueSocket(sock, queue, maxsize = 1024):
                 continue
         except socket.error, e:
             print 'Exception'
-        queue.put(str(data)+"~"+str(addr))
+        queue.put(json.loads(data))
         rate.sleep()
 
 
@@ -110,9 +116,15 @@ class gray_transceiver(object):
         self.metaTopic = rospy.Publisher(METATOPICNAME, GxMetaTopic, queue_size = 10)
         rospy.Subscriber("gray_transceiver/requests", GxRequest, self.requests_callback)
 
-        self.socks["meta"].sendto('NEW~'+MY_NAME, (MCAST_GRP, META_PORT))
+        newMsg = {}
+        newMsg["TYPE"] = "NEW"
+        newMsg["SENDER"] = "NULL"
+        newMsg["name requested"] = MY_NAME
+        newMsg["unique id"] = str(MY_MAC_ADDR)
 
-    #look into seeing if the message can just be pu directly in the queue
+        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+    #look into seeing if the message can just be put directly in the queue
     def requests_callback(self, data):
         '''
         This function gets called everytime a message is published over the /gray_transceiver/requests topic.
@@ -144,8 +156,7 @@ class gray_transceiver(object):
                 self.debugTopic.publish(temp)
 
                 peek = self.metaSockQ.get()
-                peeks = peek.split("~")
-                if peeks[0] == "NEW":
+                if peek["TYPE"] == "NEW":
                     pass
                 else:
                     noResponse = False
@@ -163,24 +174,33 @@ class gray_transceiver(object):
             temp = String()
             temp.data = message
             self.debugTopic.publish(temp)
-            messageParts = message.split("~")
-            if messageParts[0] == "ACCEPT":
-                if messageParts[1] == MY_NAME:
+            if message["TYPE"] == "ACCEPT":
+                if message["name accepted"] == MY_NAME:
                     accepted = True
 
-                elif messageParts[1] == MY_NAME+str(attempt):
+                elif message["name accepted"] == MY_NAME+str(attempt):
                     accepted = True
                     MY_NAME = MY_NAME+str(attempt)
-            elif messageParts[0] == "DENY":
-                if messageParts[1] == MY_NAME:
+            elif message["TYPE"] == "DENY":
+                if (attempt == -1) and (message["name denied"] == MY_NAME) and (message["unique id"] == MY_MAC_ADDR):
                     attempt += 1
-                    self.socks["meta"].sendto('NEW~'+MY_NAME+str(attempt), (MCAST_GRP, META_PORT))
+                    newMsg = {}
+                    newMsg["TYPE"] = "NEW"
+                    newMsg["SENDER"] = "NULL"
+                    newMsg["name requested"] = MY_NAME+str(attempy)
+                    newMsg["unique id"] = str(MY_MAC_ADDR)
+                    self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
-                elif messageParts[1] == MY_NAME+str(attempt):
+                elif (message["name denied"] == MY_NAME+str(attempt)) and (message["unique id"] == MY_MAC_ADDR):
                     attempt += 1
-                    self.socks["meta"].sendto('NEW~'+MY_NAME+str(attempt), (MCAST_GRP, META_PORT))
+                    newMsg = {}
+                    newMsg["TYPE"] = "NEW"
+                    newMsg["SENDER"] = "NULL"
+                    newMsg["name requested"] = MY_NAME+str(attempy)
+                    newMsg["unique id"] = str(MY_MAC_ADDR)
+                    self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
-            elif messageParts[0] == "NEW":
+            elif message["TYPE"] == "NEW":
                 pass
             else:
                 self.metaSockQ.put(message)
@@ -202,105 +222,138 @@ class gray_transceiver(object):
             hadMessage = False
             if not self.metaSockQ.empty():
                 message = self.metaSockQ.get()
-                messages = message.split("~")
 
-                while "~" in messages:
-                    messages.remove("~")
-
-                if messages[0] == "NEW":
+                if message["TYPE"] == "NEW":
                     temp = String()
                     temp.data = "in NEW"
                     self.debugTopic.publish(temp)
-                    if messages[1] in self.names:
-                        self.socks["meta"].sendto('DENY~'+messages[1], (MCAST_GRP, META_PORT))
+                    if message["name requested"] in self.names:
+                        newMsg = {}
+                        newMsg["TYPE"] = "DENY"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["name denied"] = message["name requested"]
+                        newMsg["unique id"] = message["unique id"]
+                        self.socks["meta"].sendto( json.dumps(newMsg), (MCAST_GRP, META_PORT))
                     else:
-                        self.socks["meta"].sendto('ACCEPT~'+messages[1], (MCAST_GRP, META_PORT))
-                        self.names.append(messages[1])
-                        self.ADDR2NAME[messages[2]] = messages[1]
-                        self.socks["meta"].sendto("IAM~"+MY_NAME, (MCAST_GRP, META_PORT))
+                        newMsg = {}
+                        newMsg["TYPE"] = "ACCEPT"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["name accepted"] = message["name requested"]
+                        newMsg["unique id"] = message["unique id"]
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+                        self.names.append(message["name requested"])
+                        self.ADDR2NAME[message["unique id"]] = message["name requested"]
 
-                elif messages[0] == "IAM":
+                        newMsg = {}
+                        newMsg["TYPE"] = "IAM"
+                        newMsg["SENDER"] = MY_NAME
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+                elif message["TYPE"] == "IAM":
                     temp = String()
                     temp.data = "in IAM"
                     self.debugTopic.publish(temp)
-                    if messages[1] not in self.names:
-                        self.names.append(messages[1])
+                    if message["SENDER"] not in self.names:
+                        self.names.append(message["SENDER"])
 
-                elif messages[0] == "REQUEST":
+                elif message["TYPE"] == "REQUEST":
                     temp = String()
                     temp.data = "in REQUEST"
                     self.debugTopic.publish(temp)
-                    #this is where they will ask each other for sending information, for now options are LIDAR and ODOM
-                    #   and should not be garunteed to have it
-                    if messages[1] in self.topics2PortTx:
-                        self.socks["meta"].sendto("TXING~"+messages[1]+"~"+str(self.topics2PortTx[messages[1]]), (MCAST_GRP, META_PORT))
 
-                    elif messages[1] == "LIDAR":
-                        self.socks["meta"].sendto("IHAVE~"+messages[1],(MCAST_GRP, META_PORT))
+                    if message["description"] in self.topics2PortTx:
+                        newMsg = {}
+                        newMsg["TYPE"] = "TXING"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = str(self.topics2PortTx[message["description"]])
+                        newMsg["message type"] = "not yet implemented"
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
-                    elif messages[1] == "ODOM":
-                        self.socks["meta"].sendto("IHAVE~"+messages[1], (MCAST_GRP, META_PORT))
 
-                elif messages[0] == "SEND":
+                    elif message["description"] in TOPICSIHAVE:
+                        newMsg = {}
+                        newMsg["TYPE"] = "IHAVE"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] =  message["description"]
+                        newMsg["message type"] = TOPICSIHAVE[message["description"]]
+
+                        self.socks["meta"].sendto(json.dumps(newMsg) ,(MCAST_GRP, META_PORT))
+
+
+                elif message["TYPE"] == "SEND":
                     temp = String()
                     temp.data = "in SEND"
                     self.debugTopic.publish(temp)
                     #this is where it starts call backs for sending messages
-                    if messages[1] in self.topics2PortTx:
+                    if message["description"] in self.topics2PortTx:
                         #do nothing cause you already are transmitting it
                         pass
-                    elif (messages[1] == "LIDAR" or messages[1] == "ODOM"):
-                        if messages[1] not in self.socks:
-                            self.socks[messages[1]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                    
+                    elif message["description"] in TOPICSIHAVE:
+                        if message["description"] not in self.socks:
+                            self.socks[message["description"]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
                         self.host = socket.gethostbyname(socket.gethostname())
-                        self.socks[messages[1]].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))
-                        self.socks[messages[1]].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
+                        self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))
+                        self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
                         temp = String()
                         temp.data = str(MCAST_GRP)
                         self.debugTopic.publish(temp)
-                        tempSock = self.socks[messages[1]]
-                        tempPort = int(messages[2])
-                        def dynamicCallback(data, port=tempPort):#default arguments are evaluated when the function is created, not called 
+                        tempSock = self.socks[message["description"]]
+                        tempPort = int(message["port"])
+                        newMsg = {}
+                        newMsg["TYPE"] = "DATA"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = tempPort
+                        
+                        def dynamicCallback(data, port=tempPort, sock = tempSock, baseMsg = newMsg):#default arguments are evaluated when the function is created, not called 
                             global MCAST_GRP
-                            tempSock.sendto(json_message_converter.convert_ros_message_to_json(data), (MCAST_GRP, int(port)))
+                            baseMsg["data"] = message_converter.convert_ros_message_to_dictionary(data)
+                            sock.sendto(json.dumps(baseMsg), (MCAST_GRP, int(port)))
 
-                        self.socks["meta"].sendto("TXING~"+messages[1]+"~"+messages[2], (MCAST_GRP, META_PORT))
-                        if messages[1] == "LIDAR":
+                        newMsg = {}
+                        newMsg["TYPE"] = "TXING"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = tempPort
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+                        if message["description"] == "LIDAR":
                             msgType = "sensor_msgs/LaserScan"
                         else:
                             msgType = "nav_msgs/Odometry"
 
                         myType = roslib.message.get_message_class(msgType)
-                        rospy.Subscriber(TOPICSIHAVE[messages[1]], myType, dynamicCallback)
+                        rospy.Subscriber(TOPICSIHAVE[message["description"]], myType, dynamicCallback)
 
-                elif messages[0] == "TXING":
+                elif message["TYPE"] == "TXING":
                     temp = String()
                     temp.data = "in TXING"
                     self.debugTopic.publish(temp)
-                    #if messages[1] is something you want, launch a thread and listen to it and publish
-                    if messages[1] in self.waitingFor:
-                        if messages[1] not in self.socks:
+                    #if message["description"] is something you want, launch a thread and listen to it and publish
+                    if message["description"] in self.waitingFor:
+                        if message["description"] not in self.socks:
                             temp = String()
                             temp.data = "in first inner if"
                             self.debugTopic.publish(temp)
-                            self.socks[messages[1]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                            self.socks[message["description"]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
                             temp = String()
                             temp.data = "end of first inner if"
                             self.debugTopic.publish(temp)
-                        if messages[1] not in self.threadsLaunched:
+                        if message["description"] not in self.threadsLaunched:
                             temp = String()
-                            temp.data = "in second inner if "+MCAST_GRP+" "+str(messages[2])
+                            temp.data = "in second inner if "+MCAST_GRP+" "+str(message["port"])
                             self.debugTopic.publish(temp)
-                            self.socks[messages[1]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-                            self.socks[messages[1]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
-                            self.socks[messages[1]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                            self.socks[messages[1]].bind((MCAST_GRP, int(messages[2])))
+                            self.socks[message["description"]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                            self.socks[message["description"]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+                            self.socks[message["description"]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                            self.socks[message["description"]].bind((MCAST_GRP, int(message["port"])))
 
-                            # self.metaTopic.publish(str(self.requested[messages[1]]))
-                            self.threadsLaunched[messages[1]] = threading.Thread(target=recvPubSocket, args=(self.socks[messages[1]], self.ADDR2NAME, messages[1], self.requested[messages[1]], self.metaTopic))
-                            self.threadsLaunched[messages[1]].daemon = True
-                            self.threadsLaunched[messages[1]].start()
+                            # self.metaTopic.publish(str(self.requested[message["description"]]))
+                            self.threadsLaunched[message["description"]] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic))
+                            self.threadsLaunched[message["description"]].daemon = True
+                            self.threadsLaunched[message["description"]].start()
                             temp = String()
                             temp.data = "end of second inner if"
                             self.debugTopic.publish(temp)
@@ -308,7 +361,7 @@ class gray_transceiver(object):
                     temp.data = "end of TXING"
                     self.debugTopic.publish(temp)
 
-                elif messages[0] == "IHAVE":
+                elif message["TYPE"] == "IHAVE":
                     
                     #check against a list of messages you want but haven't heard back about yet
                     #if someone has something you want, set a timer, for a small amount of time,
@@ -322,14 +375,21 @@ class gray_transceiver(object):
                     ###############################################################################
                     #please remove this part after PoC testing
                     #are you waiting for the thing someone offered?
-                    if messages[1] in self.waitingFor:
+                    if message["description"] in self.waitingFor:
                         portToUse = META_PORT+1
-                        if messages[1] == "LIDAR":
+                        if message["description"] == "LIDAR":
                             portToUse = PoC_LIDAR_Port
-                        if messages[1] == "ODOM":
+                        if message["description"] == "ODOM":
                             portToUse = PoC_ODOM_Port
 
-                        self.socks["meta"].sendto("SEND~"+messages[1]+"~"+str(portToUse), (MCAST_GRP, META_PORT))
+                        newMsg = {}
+                        newMsg["TYPE"] = "SEND"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = str(portToUse)
+                        newMsg["message type"] = self.requested[message["description"]]
+
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
                     ###############################################################################
 
                 #max port number is 65535
@@ -343,16 +403,13 @@ class gray_transceiver(object):
                 
                 newRequest = self.requestQ.get()
 
+                newMsg = {}
+                newMsg["TYPE"] = "REQUEST"
+                newMsg["SENDER"] = MY_NAME
+                newMsg["description"] = newRequest.description
+                newMsg["message type"] = newRequest.type
 
-                self.socks["meta"].sendto("REQUEST~"+newRequest.description,(MCAST_GRP, META_PORT))
-
-
-                #need to catch when there isn't a [1]
-                # msgTypes = newRequest.type.split("/")
-
-                # while "/" in msgTypes:
-                #     msgTypes.remove("/")
-
+                self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
                 #myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
