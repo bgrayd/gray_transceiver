@@ -3,12 +3,16 @@
 import rospy
 import socket
 import threading
-import pickle
+import json
+import roslib.message
+from rosbridge_library.internal import message_conversion
 from Queue import *
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from gray_transceiver.msg import GxRequest, GxMetaTopic
+from rospy_message_converter import message_converter, json_message_converter
+
 
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
 #possibly rename this base port
@@ -19,8 +23,8 @@ TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan",
 
 #######################################################################
 #Please remove this part after the proof of concept testing.........
-PoC_ODOM_Port = 2000   #this needs to be removed after PoC testing
-PoC_LIDAR_Port = 3000  #this needs to be removed after PoC testing
+PoC_ODOM_Port = 1026   #this needs to be removed after PoC testing
+PoC_LIDAR_Port = 1027  #this needs to be removed after PoC testing
 #More needs to be removed far down
 #######################################################################
 
@@ -29,18 +33,16 @@ PoC_LIDAR_Port = 3000  #this needs to be removed after PoC testing
 #####################################
 #split has the ones being split be in it's own element (python 2.7)
 ####################################
-def recvPubSocket(sock, addr2Name, topicName, messageType, metaTopic, maxsize = 65535):
+def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxsize = 65535):
     publishers = {}
     rate = rospy.Rate(10) #possible change needed
+    msgTypeType = roslib.message.get_message_class(messageTypeString)
     while True:
         try:
             data2, addr = sock.recvfrom(maxsize)
-            data = pickle.loads(data2)
+            data = json_message_converter.convert_json_to_ros_message(messageTypeString, data2)
         except socket.error, e:
             print 'Exception'
-            continue
-        except EOFError:
-            print "bad pickle"
             continue
         senderDomain = addr2Name[str(addr[0])]
         if senderDomain in publishers:
@@ -48,8 +50,8 @@ def recvPubSocket(sock, addr2Name, topicName, messageType, metaTopic, maxsize = 
         else:
             newMsg = GxMetaTopic()
             newMsg.name = str(senderDomain)+'/'+str(topicName)
-            newMsg.type = str(messageType)
-            publishers[senderDomain] = rospy.Publisher(str(senderDomain)+'/'+str(topicName), messageType, queue_size=10)
+            newMsg.type = str(messageTypeString)
+            publishers[senderDomain] = rospy.Publisher(str(senderDomain)+'/'+str(topicName), msgTypeType, queue_size=10)
             metaTopic.publish(newMsg)
             publishers[senderDomain].publish(data)
         rate.sleep()
@@ -260,23 +262,17 @@ class gray_transceiver(object):
                         tempSock = self.socks[messages[1]]
                         tempPort = int(messages[2])
                         def dynamicCallback(data, port=tempPort):#default arguments are evaluated when the function is created, not called 
-                            #PoC test, change the pickle
-                            #self.socks[messages[1]].sendto(data, (MCAST_GRP, messages[2]))
                             global MCAST_GRP
-                            tempSock.sendto(pickle.dumps(data), (MCAST_GRP, int(port)))
+                            tempSock.sendto(json_message_converter.convert_ros_message_to_json(data), (MCAST_GRP, int(port)))
 
                         self.socks["meta"].sendto("TXING~"+messages[1]+"~"+messages[2], (MCAST_GRP, META_PORT))
                         if messages[1] == "LIDAR":
                             msgType = "sensor_msgs/LaserScan"
                         else:
                             msgType = "nav_msgs/Odometry"
-                        # myType = getattr(__import__("sensor_msgs.msg", fromlist=["LaserScan"], level=1), "LaserScan")
-                        msgType.strip("/")
-                        msgTypes = msgType.split("/")
-                        while "/" in msgTypes:
-                            msgTypes.remove("/")
-                        myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1])
-                        rospy.Subscriber(TOPICSIHAVE[messages[1]], myType, dynamicCallback)#self.requests_callback)
+
+                        myType = roslib.message.get_message_class(msgType)
+                        rospy.Subscriber(TOPICSIHAVE[messages[1]], myType, dynamicCallback)
 
                 elif messages[0] == "TXING":
                     temp = String()
@@ -352,15 +348,15 @@ class gray_transceiver(object):
 
 
                 #need to catch when there isn't a [1]
-                msgTypes = newRequest.type.split("/")
+                # msgTypes = newRequest.type.split("/")
 
-                while "/" in msgTypes:
-                    msgTypes.remove("/")
+                # while "/" in msgTypes:
+                #     msgTypes.remove("/")
 
 
-                myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
+                #myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
-                self.requested[newRequest.description] = myType
+                self.requested[newRequest.description] = newRequest.type#myType
 
                 self.waitingFor.append(newRequest.description) #might be able to remove after PoC testing
 
