@@ -21,22 +21,13 @@ MY_MAC_ADDR = get_mac()
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
 #possibly rename this base port
 META_PORT = 1025           #possibly change this to a parameter
+POLLTIMERAMOUNT = 2.0 #seconds
 MY_NAME = rospy.get_param("gray_transceiver/my_name", "robot")#"NOTCHANGED")
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","gray_transceiver/metatopic")
 TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
 
-#######################################################################
-#Please remove this part after the proof of concept testing.........
-PoC_ODOM_Port = 1026   #this needs to be removed after PoC testing
-PoC_LIDAR_Port = 1027  #this needs to be removed after PoC testing
-#More needs to be removed far down
-#######################################################################
 
 
-
-#####################################
-#split has the ones being split be in it's own element (python 2.7)
-####################################
 def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxsize = 65535):
     publishers = {}
     rate = rospy.Rate(10) #possible change needed
@@ -83,16 +74,17 @@ class gray_transceiver(object):
         
         self.debugTopic  = rospy.Publisher("Gx_DEBUG", String, queue_size = 10, latch = True)
 
+        self.highestPortSeen = META_PORT
         self.requestQ = Queue(10)
         self.metaSockQ = Queue(20)
         self.socks = {}
         self.threadsLaunched = {}
         self.topics2PortTx = {}
         self.topics2PortRx = {}
-        self.ports2topic = {}
-        self.nextPort = 2
+        self.portsIUse = []
         self.names = []
         self.requested = {}
+        self.timers = {}
 
         #this might be removed after PoC, currently unsure
         self.waitingFor = []
@@ -285,6 +277,10 @@ class gray_transceiver(object):
                     temp = String()
                     temp.data = "in SEND"
                     self.debugTopic.publish(temp)
+
+                    if int(message["port"]) > self.highestPortSeen:
+                            self.highestPortSeen = int(message["port"])
+
                     #this is where it starts call backs for sending messages
                     if message["description"] in self.topics2PortTx:
                         #do nothing cause you already are transmitting it
@@ -319,6 +315,10 @@ class gray_transceiver(object):
                         newMsg["description"] = message["description"]
                         newMsg["port"] = tempPort
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+                        self.topics2PortTx[message["description"]] = tempPort
+                        self.portsIUse.append(int(tempPort))
+
                         if message["description"] == "LIDAR":
                             msgType = "sensor_msgs/LaserScan"
                         else:
@@ -331,6 +331,10 @@ class gray_transceiver(object):
                     temp = String()
                     temp.data = "in TXING"
                     self.debugTopic.publish(temp)
+
+                    if int(message["port"]) > self.highestPortSeen:
+                            self.highestPortSeen = int(message["port"])
+
                     #if message["description"] is something you want, launch a thread and listen to it and publish
                     if message["description"] in self.waitingFor:
                         if message["description"] not in self.socks:
@@ -350,10 +354,13 @@ class gray_transceiver(object):
                             self.socks[message["description"]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[message["description"]].bind((MCAST_GRP, int(message["port"])))
 
-                            # self.metaTopic.publish(str(self.requested[message["description"]]))
                             self.threadsLaunched[message["description"]] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic))
                             self.threadsLaunched[message["description"]].daemon = True
                             self.threadsLaunched[message["description"]].start()
+
+                            self.topics2PortRx[message["description"]] = message["port"]
+                            self.portsIUse.append(int(message["port"]))
+
                             temp = String()
                             temp.data = "end of second inner if"
                             self.debugTopic.publish(temp)
@@ -372,15 +379,9 @@ class gray_transceiver(object):
                     temp = String()
                     temp.data = "in IHAVE"
                     self.debugTopic.publish(temp)
-                    ###############################################################################
-                    #please remove this part after PoC testing
-                    #are you waiting for the thing someone offered?
+
                     if message["description"] in self.waitingFor:
-                        portToUse = META_PORT+1
-                        if message["description"] == "LIDAR":
-                            portToUse = PoC_LIDAR_Port
-                        if message["description"] == "ODOM":
-                            portToUse = PoC_ODOM_Port
+                        portToUse = self.highestPortSeen + 1
 
                         newMsg = {}
                         newMsg["TYPE"] = "SEND"
@@ -389,10 +390,66 @@ class gray_transceiver(object):
                         newMsg["port"] = str(portToUse)
                         newMsg["message type"] = self.requested[message["description"]]
 
+                        def timerCallback(sock = self.socks["meta"], message = newMsg, timersDict = self.timers, port = str(portToUse)):
+                            sock.sendto(json.dumps(message), (MCAST_GRP, META_PORT))
+                            timersDict[port] = None
+                    
+                        newMsg = {}
+                        newMsg["TYPE"] = "PORT_POLL"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = str(portToUse)
+                        newMsg["message type"] = self.requested[message["description"]]
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
-                    ###############################################################################
 
-                #max port number is 65535
+                        #self.portsIUse.append(portToUse)
+                        self.highestPortSeen += 1
+
+                        self.timers[str(portToUse)] = threading.Timer(POLLTIMERAMOUNT, timerCallback)
+                        self.timers[str(portToUse)].start()
+                
+                elif message["TYPE"] == "PORT_POLL":
+                    if int(message["port"]) in self.portsIUse:
+                        newMsg = {}
+                        newMsg["TYPE"] = "PORT_TAKEN"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = message["port"]
+                        newMsg["message type"] = message["message type"]
+                        newMsg["requestor"] = message["SENDER"]
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+                elif message["TYPE"] == "PORT_TAKEN":
+                    if message["requestor"] == MY_NAME:
+                        if self.timers[str(message["port"])] is not None:
+                            self.timers[str(message["port"])].cancel()
+
+                            portToUse = self.highestPortSeen + 1
+
+                        newMsg = {}
+                        newMsg["TYPE"] = "SEND"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = str(portToUse)
+                        newMsg["message type"] = self.requested[message["description"]]
+
+                        def timerCallback(sock = self.socks["meta"], message = newMsg, timersDict = self.timers, port = str(portToUse)):
+                            sock.sendto(json.dumps(message), (MCAST_GRP, META_PORT))
+                            timersDict[port] = None
+                            
+                        newMsg = {}
+                        newMsg["TYPE"] = "PORT_POLL"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = str(portToUse)
+                        newMsg["message type"] = self.requested[message["description"]]
+                        self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+                        self.portsIUse.append(portToUse)
+                        # self.highestPortSeen += 1
+
+                        self.timers[str(portToUse)] = threading.Timer(POLLTIMERAMOUNT, timerCallback)
+                        self.timers[str(portToUse)].start()
 
 
 
