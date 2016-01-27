@@ -5,7 +5,7 @@ import tf
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 
-namespace = rospy.get_param("robotName","robot")
+namespace = rospy.get_param("namespace","robot")
 
 
 class frame_remapper(object):

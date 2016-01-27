@@ -21,10 +21,12 @@ MY_MAC_ADDR = get_mac()
 MCAST_GRP = '224.1.1.1' #change this to use a parameter
 #possibly rename this base port
 META_PORT = 1025           #possibly change this to a parameter
-POLLTIMERAMOUNT = 2.0 #seconds
+POLLTIMERAMOUNT = 2.5 #seconds
 MY_NAME = rospy.get_param("gray_transceiver/my_name", "robot")#"NOTCHANGED")
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","gray_transceiver/metatopic")
 TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
+
+MY_IP_ADDR = subprocess.check_output(["ifconfig", "wlan0"]).split("inet addr:")[1].split(" ")[0]
 
 
 
@@ -62,6 +64,7 @@ def recvQueSocket(sock, queue, maxsize = 1024):
                 continue
         except socket.error, e:
             print 'Exception'
+
         queue.put(json.loads(data))
         rate.sleep()
 
@@ -97,9 +100,10 @@ class gray_transceiver(object):
         self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
         self.socks["meta"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socks["meta"].bind((MCAST_GRP, META_PORT))
-        self.host = socket.gethostbyname(socket.gethostname())
-        self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.INADDR_ANY)
+        self.host = MY_IP_ADDR#socket.gethostbyname(socket.gethostname())
+        self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
         self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
+        self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
 
         self.threadsLaunched["meta"] = threading.Thread(target=recvQueSocket, args=(self.socks["meta"], self.metaSockQ))
         self.threadsLaunched["meta"].daemon = True
@@ -163,9 +167,6 @@ class gray_transceiver(object):
 
         while not accepted:
             message = self.metaSockQ.get()
-            temp = String()
-            temp.data = message
-            self.debugTopic.publish(temp)
             if message["TYPE"] == "ACCEPT":
                 if message["name accepted"] == MY_NAME:
                     accepted = True
@@ -208,9 +209,9 @@ class gray_transceiver(object):
         self.debugTopic.publish(temp)
         
         while not rospy.is_shutdown():
-            temp = String()
-            temp.data = "in loop"
-            self.debugTopic.publish(temp)
+            # temp = String()
+            # temp.data = "in loop"
+            # self.debugTopic.publish(temp)
             hadMessage = False
             if not self.metaSockQ.empty():
                 message = self.metaSockQ.get()
@@ -291,7 +292,8 @@ class gray_transceiver(object):
                             self.socks[message["description"]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
                         self.host = socket.gethostbyname(socket.gethostname())
-                        self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.INADDR_ANY)
+                        self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
+                        self.socks[message["description"]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
                         self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
                         temp = String()
                         temp.data = str(MCAST_GRP)
@@ -402,7 +404,7 @@ class gray_transceiver(object):
                         newMsg["message type"] = self.requested[message["description"]]
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
-                        #self.portsIUse.append(portToUse)
+                        self.portsIUse.append(portToUse)
                         self.highestPortSeen += 1
 
                         self.timers[str(portToUse)] = threading.Timer(POLLTIMERAMOUNT, timerCallback)
@@ -446,7 +448,7 @@ class gray_transceiver(object):
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
                         self.portsIUse.append(portToUse)
-                        # self.highestPortSeen += 1
+                        self.highestPortSeen += 1
 
                         self.timers[str(portToUse)] = threading.Timer(POLLTIMERAMOUNT, timerCallback)
                         self.timers[str(portToUse)].start()
