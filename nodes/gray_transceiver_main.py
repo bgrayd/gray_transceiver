@@ -4,6 +4,7 @@ import rospy
 import socket
 import threading
 import json
+import subprocess
 import roslib.message
 from rosbridge_library.internal import message_conversion
 from Queue import *
