@@ -9,6 +9,7 @@ namespace = rospy.get_param("robotName", "")
 
 class frame_remapper(object):
     def __init__(self):
+        self.firstOdom = True
         rospy.init_node("frame_remaper")
         self.pub = rospy.Publisher("reframed_scan", LaserScan, queue_size=10)
         rospy.Subscriber("LIDAR", LaserScan, self.lidar_callback)#"/"+namespace+
@@ -20,6 +21,11 @@ class frame_remapper(object):
         self.pub.publish(data)
 
     def odom_callback(self, data):
+        if self.firstOdom:
+            self.firstOdom = False
+            br = tf.TransformBroadcaster()#(0, 0, msg.theta)
+            br.sendTransform((data.pose.pose.position.x, data.pose.pose.position.y, 0),(data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z, data.pose.pose.orientation.w), rospy.Time.now(), "map", namespace+"map" )
+
         br = tf.TransformBroadcaster()#(0, 0, msg.theta)
         br.sendTransform((data.pose.pose.position.x, data.pose.pose.position.y, 0),(data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z, data.pose.pose.orientation.w), rospy.Time.now(), namespace+"_base_link", namespace+"_odom" )
 
