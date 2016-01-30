@@ -6,7 +6,7 @@ import threading
 import json
 import subprocess
 import roslib.message
-from rosbridge_library.internal import message_conversion
+# from rosbridge_library.internal import message_conversion
 from Queue import *
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
@@ -61,10 +61,9 @@ def recvQueSocket(sock, queue, maxsize = 1024):
     while True:
         try:
             data, addr = sock.recvfrom(maxsize)
-            if addr == socket.gethostbyname(socket.gethostname()):
-                continue
         except socket.error, e:
             print 'Exception'
+            continue
 
         queue.put(json.loads(data))
         rate.sleep()
@@ -112,6 +111,7 @@ class gray_transceiver(object):
 
         self.metaTopic = rospy.Publisher(METATOPICNAME, GxMetaTopic, queue_size = 10)
         rospy.Subscriber("gray_transceiver/requests", GxRequest, self.requests_callback)
+        rospy.Subscriber("gray_transceiver/offers", GxRequest, self.requests_callback)
 
         newMsg = {}
         newMsg["TYPE"] = "NEW"
@@ -142,11 +142,11 @@ class gray_transceiver(object):
         noResponse = False
         for i in range(100):
             if self.metaSockQ.empty():
-                noResponse = True
-                rospy.sleep(0.07)#0.001)
-                temp = String()
-                temp.data = "in if"
-                self.debugTopic.publish(temp)
+                noResponse = noResponse or True
+                rospy.sleep(0.9)#0.001)
+                # temp = String()
+                # temp.data = "in if"
+                # self.debugTopic.publish(temp)
             else:
                 temp = String()
                 temp.data = "in else"
@@ -166,7 +166,20 @@ class gray_transceiver(object):
         if noResponse:
             accepted = True
 
+        iterationsSinceResponse = 0
         while not accepted:
+            if self.metaSockQ.empty():
+                rospy.sleep(0.1)
+                iterationsSinceResponse += 1
+                if iterationsSinceResponse >= 100:
+                    iterationsSinceResponse = 0
+                    newMsg = {}
+                    newMsg["TYPE"] = "NEW"
+                    newMsg["SENDER"] = "NULL"
+                    newMsg["name requested"] = MY_NAME+str(attempt)
+                    newMsg["unique id"] = str(MY_MAC_ADDR)
+                    self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+                continue
             message = self.metaSockQ.get()
             if message["TYPE"] == "ACCEPT":
                 if message["name accepted"] == MY_NAME:
@@ -176,21 +189,21 @@ class gray_transceiver(object):
                     accepted = True
                     MY_NAME = MY_NAME+str(attempt)
             elif message["TYPE"] == "DENY":
-                if (attempt == -1) and (message["name denied"] == MY_NAME) and (message["unique id"] == MY_MAC_ADDR):
+                if (attempt == -1) and (message["name denied"] == MY_NAME) and (message["unique id"] == str(MY_MAC_ADDR)):
                     attempt += 1
                     newMsg = {}
                     newMsg["TYPE"] = "NEW"
                     newMsg["SENDER"] = "NULL"
-                    newMsg["name requested"] = MY_NAME+str(attempy)
+                    newMsg["name requested"] = MY_NAME+str(attempt)
                     newMsg["unique id"] = str(MY_MAC_ADDR)
                     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
-                elif (message["name denied"] == MY_NAME+str(attempt)) and (message["unique id"] == MY_MAC_ADDR):
+                elif (message["name denied"] == MY_NAME+str(attempt)) and (message["unique id"] == str(MY_MAC_ADDR)):
                     attempt += 1
                     newMsg = {}
                     newMsg["TYPE"] = "NEW"
                     newMsg["SENDER"] = "NULL"
-                    newMsg["name requested"] = MY_NAME+str(attempy)
+                    newMsg["name requested"] = MY_NAME+str(attempt)
                     newMsg["unique id"] = str(MY_MAC_ADDR)
                     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
