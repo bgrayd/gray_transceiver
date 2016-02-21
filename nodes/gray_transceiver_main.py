@@ -210,7 +210,8 @@ class gray_transceiver(object):
             elif message["TYPE"] == "NEW":
                 pass
             else:
-                self.metaSockQ.put(message)
+                #self.metaSockQ.put(message)
+                pass
             temp = String()
             temp.data = "not yet accepted"
             self.debugTopic.publish(temp)
@@ -219,7 +220,7 @@ class gray_transceiver(object):
 
         rospy.sleep(10)
         temp = String()
-        temp.data = "accepted"
+        temp.data = "accepted as "+MY_NAME
         self.debugTopic.publish(temp)
         
         while not rospy.is_shutdown():
@@ -277,6 +278,15 @@ class gray_transceiver(object):
                         newMsg["message type"] = "not yet implemented"
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
+                    # elif message["description"] in self.topics2PortRx:
+                    #     newMsg = {}
+                    #     newMsg["TYPE"] = "TXING"
+                    #     newMsg["SENDER"] = MY_NAME
+                    #     newMsg["description"] = message["description"]
+                    #     newMsg["port"] = str(self.topics2PortRx[message["description"]])
+                    #     newMsg["message type"] = "not yet implemented"
+                    #     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
 
                     elif message["description"] in TOPICSIHAVE:
                         newMsg = {}
@@ -305,7 +315,7 @@ class gray_transceiver(object):
                         if message["description"] not in self.socks:
                             self.socks[message["description"]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
-                        self.host = socket.gethostbyname(socket.gethostname())
+                        #self.host = socket.gethostbyname(socket.gethostname())
                         self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
                         self.socks[message["description"]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
                         self.socks[message["description"]].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
@@ -375,6 +385,27 @@ class gray_transceiver(object):
                             self.threadsLaunched[message["description"]].start()
 
                             self.topics2PortRx[message["description"]] = message["port"]
+                            self.portsIUse.append(int(message["port"]))
+
+                            temp = String()
+                            temp.data = "end of second inner if"
+                            self.debugTopic.publish(temp)
+
+                        if message["description"] not in self.threadsLaunched:
+                            temp = String()
+                            temp.data = "in third inner if "+MCAST_GRP+" "+str(message["port"])
+                            self.debugTopic.publish(temp)
+                            socks_key = message["description"]+str(message["port"])
+                            self.socks[socks_key] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                            self.socks[socks_key].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+                            self.socks[socks_key].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                            self.socks[socks_key].bind((MCAST_GRP, int(message["port"])))
+
+                            self.threadsLaunched[socks_key] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic))
+                            self.threadsLaunched[socks_key].daemon = True
+                            self.threadsLaunched[socks_key].start()
+
+                            self.topics2PortRx[socks_key] = message["port"]
                             self.portsIUse.append(int(message["port"]))
 
                             temp = String()
@@ -483,6 +514,18 @@ class gray_transceiver(object):
                 newMsg["message type"] = newRequest.type
 
                 self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+                def myTimer(timeSec = 10, msg = newMsg, sock = self.socks["meta"]):
+                    import time
+                    while not rospy.is_shutdown():
+                        sock.sendto(json.dumps(msg), (MCAST_GRP, META_PORT))
+                        time.sleep(timeSec)
+
+                self.timers["request_"+newRequest.description] = threading.Thread(target=myTimer, args=())
+                self.timers["request_"+newRequest.description].daemon = True
+                self.timers["request_"+newRequest.description].start()
+
+
 
                 #myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
