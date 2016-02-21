@@ -21,11 +21,10 @@ class frame_remapper(object):
         self.pub.publish(data)
 
     def odom_callback(self, data):
-        if self.firstOdom:
-            self.firstOdom = False
-            br = tf.TransformBroadcaster()#(0, 0, msg.theta)
-            br.sendTransform((data.pose.pose.position.x, data.pose.pose.position.y, 0),(data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z, data.pose.pose.orientation.w), rospy.Time.now(), "map", namespace+"map" )
-
+        br = tf.TransformBroadcaster()
+        br.sendTransform((0, 0, 0),tf.transformations.quaternion_from_euler(0, 0, 0), rospy.Time.now(), namespace+"_map", "world" )
+        br = tf.TransformBroadcaster()
+        br.sendTransform((0, 0, 0),tf.transformations.quaternion_from_euler(0, 0, 0), rospy.Time.now(), "map", "world" )
         br = tf.TransformBroadcaster()#(0, 0, msg.theta)
         br.sendTransform((data.pose.pose.position.x, data.pose.pose.position.y, 0),(data.pose.pose.orientation.x, data.pose.pose.orientation.y, data.pose.pose.orientation.z, data.pose.pose.orientation.w), rospy.Time.now(), namespace+"_base_link", namespace+"_odom" )
 

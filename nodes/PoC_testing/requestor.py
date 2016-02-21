@@ -4,13 +4,13 @@ import rospy
 from std_msgs.msg import String
 from gray_transceiver.msg import GxRequest
 
-class requestor(object):
+class requester(object):
 
     def __init__(self):
         '''
-        Constructor for requestor class.
+        Constructor for requester class.
         '''
-        rospy.init_node("requestor")
+        rospy.init_node("requester")
         self.request_pub = rospy.Publisher("gray_transceiver/requests", GxRequest, queue_size=10)
 
         
@@ -34,5 +34,5 @@ class requestor(object):
 
 
 if __name__ == "__main__":
-    Requestor = requestor()
-    Requestor.run()
+    Requester = requester()
+    Requester.run()

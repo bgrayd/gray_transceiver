@@ -8,10 +8,10 @@
     <node pkg="gray_transceiver" type="requestor.py" name="requestor"/>
 
 
-    <!--<node pkg="gmapping" type="slam_gmapping" name="gmapping_thing" output="screen" >
+    <node pkg="gmapping" type="slam_gmapping" name="gmapping" output="screen" >
         <remap from="scan" to="/base_scan" />
         <remap from="/map" to="/my_map" />
-    </node>-->
+    </node>
 
     <node pkg="gray_transceiver" type="gray_transceiver_main.py" name="gray_transceiver" required="true">
         <remap from="/scan" to="/base_scan" />

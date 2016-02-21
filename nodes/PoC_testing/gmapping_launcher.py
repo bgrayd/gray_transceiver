@@ -3,6 +3,7 @@
 import rospy
 import subprocess
 import threading
+import tf
 from gray_transceiver.msg import GxMetaTopic
 
 
@@ -25,6 +26,8 @@ class gmapping_launcher(object):
             rospy.set_param(namePieces[0]+"/robotName", namePieces[0])
             self.subprocs.append(subprocess.Popen(["rosrun","gmapping", "slam_gmapping", "__ns:="+namePieces[0], "scan:=reframed_scan","_map_frame:="+namePieces[0]+"_map", "_base_frame:="+namePieces[0]+"_base_link", "_odom_frame:="+namePieces[0]+"_odom" ], stdin=subprocess.PIPE, stdout=subprocess.PIPE))
             self.subprocs.append(subprocess.Popen(["rosrun","gray_transceiver", "lidar_remapper.py", "__ns:="+namePieces[0]], stdin=subprocess.PIPE, stdout=subprocess.PIPE))#,"robotName:="+namePieces[0]
+
+            
 
         
     def run(self):
