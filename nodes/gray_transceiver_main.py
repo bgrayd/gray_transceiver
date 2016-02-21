@@ -97,7 +97,7 @@ class gray_transceiver(object):
         self.ADDR2NAME['127.0.1.1'] = "me"
 
         self.socks["meta"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+        self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
         self.socks["meta"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socks["meta"].bind((MCAST_GRP, META_PORT))
         self.host = MY_IP_ADDR#socket.gethostbyname(socket.gethostname())
@@ -376,7 +376,7 @@ class gray_transceiver(object):
                             temp.data = "in second inner if "+MCAST_GRP+" "+str(message["port"])
                             self.debugTopic.publish(temp)
                             self.socks[message["description"]] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-                            self.socks[message["description"]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+                            self.socks[message["description"]].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
                             self.socks[message["description"]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[message["description"]].bind((MCAST_GRP, int(message["port"])))
 
@@ -397,7 +397,7 @@ class gray_transceiver(object):
                             self.debugTopic.publish(temp)
                             socks_key = message["description"]+str(message["port"])
                             self.socks[socks_key] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-                            self.socks[socks_key].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 32)
+                            self.socks[socks_key].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
                             self.socks[socks_key].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[socks_key].bind((MCAST_GRP, int(message["port"])))
 
