@@ -11,7 +11,7 @@ from Queue import *
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
-from gray_transceiver.msg import GxRequest, GxMetaTopic
+from gray_transceiver.msg import GxOffer, GxRequest, GxMetaTopic
 from rospy_message_converter import message_converter, json_message_converter
 
 
@@ -35,6 +35,9 @@ def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxs
     publishers = {}
     rate = rospy.Rate(10) #possible change needed
     msgTypeType = roslib.message.get_message_class(messageTypeString)
+    temp = String()
+    temp.data = "new recvPubSocket"+str(topicName)
+    rospy.Publisher("Gx_DEBUG", String, queue_size = 10, latch = True).publish(temp)
     while True:
         try:
             data2, addr = sock.recvfrom(maxsize)
@@ -110,8 +113,9 @@ class gray_transceiver(object):
         self.threadsLaunched["meta"].start()
 
         self.metaTopic = rospy.Publisher(METATOPICNAME, GxMetaTopic, queue_size = 10)
+        self.availableTopic = rospy.Publisher("gray_transceiver/availableOffered", GxOffer, queue_size = 10)
         rospy.Subscriber("gray_transceiver/requests", GxRequest, self.requests_callback)
-        rospy.Subscriber("gray_transceiver/offers", GxRequest, self.requests_callback)
+        rospy.Subscriber("gray_transceiver/offers", GxOffer, self.offers_callback)
 
         newMsg = {}
         newMsg["TYPE"] = "NEW"
@@ -130,6 +134,12 @@ class gray_transceiver(object):
         temp.data = "in callback"
         self.debugTopic.publish(temp)
         self.requestQ.put(data)
+
+    def offers_callback(self, data):
+        '''
+        This function gets called everytime a message is published over the /gray_transceiver/offers topic.
+        '''
+        TOPICSIHAVE[data.description] = data.type
         
     def run(self):
         global MY_NAME
@@ -391,7 +401,7 @@ class gray_transceiver(object):
                             temp.data = "end of second inner if"
                             self.debugTopic.publish(temp)
 
-                        if message["description"] not in self.threadsLaunched:
+                        if message["description"] in self.threadsLaunched:
                             temp = String()
                             temp.data = "in third inner if "+MCAST_GRP+" "+str(message["port"])
                             self.debugTopic.publish(temp)
@@ -404,12 +414,15 @@ class gray_transceiver(object):
                             self.threadsLaunched[socks_key] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic))
                             self.threadsLaunched[socks_key].daemon = True
                             self.threadsLaunched[socks_key].start()
+                            temp = String()
+                            temp.data = "launched on port "+str(message["port"])
+                            self.debugTopic.publish(temp)
 
                             self.topics2PortRx[socks_key] = message["port"]
                             self.portsIUse.append(int(message["port"]))
 
                             temp = String()
-                            temp.data = "end of second inner if"
+                            temp.data = "end of third inner if"
                             self.debugTopic.publish(temp)
                     temp = String()
                     temp.data = "end of TXING"
@@ -427,7 +440,17 @@ class gray_transceiver(object):
                     temp.data = "in IHAVE"
                     self.debugTopic.publish(temp)
 
-                    if message["description"] in self.waitingFor:
+                    if message["description"] in self.topics2PortTx:
+                        newMsg = {}
+                        newMsg["TYPE"] = "SEND"
+                        newMsg["SENDER"] = MY_NAME
+                        newMsg["description"] = message["description"]
+                        newMsg["port"] = str(portToUse)
+                        newMsg["message type"] = self.requested[message["description"]]
+
+                        self.socks["meta"].sendto(json.dumps(message), (MCAST_GRP, META_PORT))
+
+                    elif message["description"] in self.waitingFor:
                         portToUse = self.highestPortSeen + 1
 
                         newMsg = {}
@@ -498,6 +521,19 @@ class gray_transceiver(object):
                         self.timers[str(portToUse)] = threading.Timer(POLLTIMERAMOUNT, timerCallback)
                         self.timers[str(portToUse)].start()
 
+                elif message["TYPE"] == "OFFERS_REQ":
+                    newMsg = {}
+                    newMsg["TYPE"] = "OFFERS_ACK"
+                    newMsg["SENDER"] = MY_NAME
+                    newMsg["topics"] = TOPICSIHAVE
+                    self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
+
+                elif message["TYPE"] == "OFFERS_ACK":
+                    for key,data in message["topics"]:
+                        topicOfferMsg = GxOffer()
+                        topicOfferMsg.description = key
+                        topicOfferMsg.type = data
+                        self.availableTopic.publish(topicOfferMsg)
 
 
             if not self.requestQ.empty():
