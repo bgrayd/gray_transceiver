@@ -21,15 +21,17 @@ class cmdVelRepub(object):
     def meta_sub(self, data):
         self.thisRobotName = data.myName
         if(data.type == "gray_transceiver/twistCommand"):
-            if(data.description == "forward"):
-                rospy.Subscriber(data.name, twistCommand, self.twistCmd_sub)
+            rospy.Subscriber(data.name, twistCommand, self.twistCmd_sub)
+            # if(data.description == "forward"):
+                # rospy.Subscriber(data.name, twistCommand, self.twistCmd_sub)
 
     def twistCmd_sub(self, data):
-        if(data.targetName == self.thisRobotName):
+        if(data.name == self.thisRobotName):
             cmd_vel = Twist()
             cmd_vel.linear = data.linear
             cmd_vel.angular = data.angular
-            for each in range(0, data.seconds*hertz):
+            # self.cmd_vel_pub.publish(cmd_vel)
+            for each in range(0, int(data.seconds*hertz)):
                 self.twistQueue.put(cmd_vel)
 
     def run(self):
@@ -39,3 +41,8 @@ class cmdVelRepub(object):
                 message = self.twistQueue.get()
                 self.cmd_vel_pub.publish(message)
             rate.sleep()
+
+
+if __name__ == "__main__":
+    node = cmdVelRepub()
+    node.run()
