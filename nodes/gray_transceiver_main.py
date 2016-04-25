@@ -31,7 +31,7 @@ MY_IP_ADDR = subprocess.check_output(["ifconfig", "wlan0"]).split("inet addr:")[
 
 
 
-def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxsize = 65535):
+def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic,myName, maxsize = 65535):
     publishers = {}
     rate = rospy.Rate(10) #possible change needed
     msgTypeType = roslib.message.get_message_class(messageTypeString)
@@ -42,7 +42,10 @@ def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxs
         try:
             data2, addr = sock.recvfrom(maxsize)
             message = json.loads(data2)
-            data = message_converter.convert_dictionary_to_ros_message(messageTypeString, message["data"])
+            try:
+                data = message_converter.convert_dictionary_to_ros_message(messageTypeString, message["data"])
+            except Exception as ex:
+                data = message_converter.convert_dictionary_to_ros_message(messageTypeString, json.loads(message["data"]))
             senderDomain = message["SENDER"]
         except socket.error, e:
             print 'Exception'
@@ -52,6 +55,7 @@ def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic, maxs
             publishers[senderDomain].publish(data)
         else:
             newMsg = GxMetaTopic()
+            newMsg.myName = myName
             newMsg.name = str(senderDomain)+'/'+str(topicName)
             newMsg.type = str(messageTypeString)
             publishers[senderDomain] = rospy.Publisher(str(senderDomain)+'/'+str(topicName), msgTypeType, queue_size=10)
@@ -120,8 +124,8 @@ class gray_transceiver(object):
         newMsg = {}
         newMsg["TYPE"] = "NEW"
         newMsg["SENDER"] = "NULL"
-        newMsg["name requested"] = MY_NAME
-        newMsg["unique id"] = str(MY_MAC_ADDR)
+        newMsg["name_requested"] = MY_NAME
+        newMsg["unique_id"] = str(MY_MAC_ADDR)
 
         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
@@ -153,7 +157,7 @@ class gray_transceiver(object):
         for i in range(100):
             if self.metaSockQ.empty():
                 noResponse = noResponse or True
-                rospy.sleep(0.9)#0.001)
+                rospy.sleep(0.001)#0.9)#0.001)
                 # temp = String()
                 # temp.data = "in if"
                 # self.debugTopic.publish(temp)
@@ -186,35 +190,35 @@ class gray_transceiver(object):
                     newMsg = {}
                     newMsg["TYPE"] = "NEW"
                     newMsg["SENDER"] = "NULL"
-                    newMsg["name requested"] = MY_NAME+str(attempt)
-                    newMsg["unique id"] = str(MY_MAC_ADDR)
+                    newMsg["name_requested"] = MY_NAME+str(attempt)
+                    newMsg["unique_id"] = str(MY_MAC_ADDR)
                     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
                 continue
             message = self.metaSockQ.get()
             if message["TYPE"] == "ACCEPT":
-                if message["name accepted"] == MY_NAME:
+                if message["name_requested"] == MY_NAME:
                     accepted = True
 
-                elif message["name accepted"] == MY_NAME+str(attempt):
+                elif message["name_requested"] == MY_NAME+str(attempt):
                     accepted = True
                     MY_NAME = MY_NAME+str(attempt)
             elif message["TYPE"] == "DENY":
-                if (attempt == -1) and (message["name denied"] == MY_NAME) and (message["unique id"] == str(MY_MAC_ADDR)):
+                if (attempt == -1) and (message["name_requested"] == MY_NAME) and (message["unique_id"] == str(MY_MAC_ADDR)):
                     attempt += 1
                     newMsg = {}
                     newMsg["TYPE"] = "NEW"
                     newMsg["SENDER"] = "NULL"
-                    newMsg["name requested"] = MY_NAME+str(attempt)
-                    newMsg["unique id"] = str(MY_MAC_ADDR)
+                    newMsg["name_requested"] = MY_NAME+str(attempt)
+                    newMsg["unique_id"] = str(MY_MAC_ADDR)
                     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
-                elif (message["name denied"] == MY_NAME+str(attempt)) and (message["unique id"] == str(MY_MAC_ADDR)):
+                elif (message["name_requested"] == MY_NAME+str(attempt)) and (message["unique_id"] == str(MY_MAC_ADDR)):
                     attempt += 1
                     newMsg = {}
                     newMsg["TYPE"] = "NEW"
                     newMsg["SENDER"] = "NULL"
-                    newMsg["name requested"] = MY_NAME+str(attempt)
-                    newMsg["unique id"] = str(MY_MAC_ADDR)
+                    newMsg["name_requested"] = MY_NAME+str(attempt)
+                    newMsg["unique_id"] = str(MY_MAC_ADDR)
                     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
             elif message["TYPE"] == "NEW":
@@ -245,22 +249,22 @@ class gray_transceiver(object):
                     temp = String()
                     temp.data = "in NEW"
                     self.debugTopic.publish(temp)
-                    if message["name requested"] in self.names:
+                    if message["name_requested"] in self.names:
                         newMsg = {}
                         newMsg["TYPE"] = "DENY"
                         newMsg["SENDER"] = MY_NAME
-                        newMsg["name denied"] = message["name requested"]
-                        newMsg["unique id"] = message["unique id"]
+                        newMsg["name_requested"] = message["name_requested"]
+                        newMsg["unique_id"] = message["unique_id"]
                         self.socks["meta"].sendto( json.dumps(newMsg), (MCAST_GRP, META_PORT))
                     else:
                         newMsg = {}
                         newMsg["TYPE"] = "ACCEPT"
                         newMsg["SENDER"] = MY_NAME
-                        newMsg["name accepted"] = message["name requested"]
-                        newMsg["unique id"] = message["unique id"]
+                        newMsg["name_requested"] = message["name_requested"]
+                        newMsg["unique_id"] = message["unique_id"]
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
-                        self.names.append(message["name requested"])
-                        self.ADDR2NAME[message["unique id"]] = message["name requested"]
+                        self.names.append(message["name_requested"])
+                        self.ADDR2NAME[message["unique_id"]] = message["name_requested"]
 
                         newMsg = {}
                         newMsg["TYPE"] = "IAM"
@@ -284,8 +288,8 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "TXING"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
-                        newMsg["port"] = str(self.topics2PortTx[message["description"]])
-                        newMsg["message type"] = "not yet implemented"
+                        newMsg["port"] = int(self.topics2PortTx[message["description"]])
+                        newMsg["message_type"] = "not yet implemented"
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
                     # elif message["description"] in self.topics2PortRx:
@@ -294,7 +298,7 @@ class gray_transceiver(object):
                     #     newMsg["SENDER"] = MY_NAME
                     #     newMsg["description"] = message["description"]
                     #     newMsg["port"] = str(self.topics2PortRx[message["description"]])
-                    #     newMsg["message type"] = "not yet implemented"
+                    #     newMsg["message_type"] = "not yet implemented"
                     #     self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
 
@@ -303,10 +307,9 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "IHAVE"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] =  message["description"]
-                        newMsg["message type"] = TOPICSIHAVE[message["description"]]
+                        newMsg["message_type"] = TOPICSIHAVE[message["description"]]
 
                         self.socks["meta"].sendto(json.dumps(newMsg) ,(MCAST_GRP, META_PORT))
-
 
                 elif message["TYPE"] == "SEND":
                     temp = String()
@@ -390,11 +393,11 @@ class gray_transceiver(object):
                             self.socks[message["description"]].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[message["description"]].bind((MCAST_GRP, int(message["port"])))
 
-                            self.threadsLaunched[message["description"]] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic))
+                            self.threadsLaunched[message["description"]] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic, MY_NAME))
                             self.threadsLaunched[message["description"]].daemon = True
                             self.threadsLaunched[message["description"]].start()
 
-                            self.topics2PortRx[message["description"]] = message["port"]
+                            self.topics2PortRx[message["description"]] = int(message["port"])
                             self.portsIUse.append(int(message["port"]))
 
                             temp = String()
@@ -411,7 +414,7 @@ class gray_transceiver(object):
                             self.socks[socks_key].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[socks_key].bind((MCAST_GRP, int(message["port"])))
 
-                            self.threadsLaunched[socks_key] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic))
+                            self.threadsLaunched[socks_key] = threading.Thread(target=recvPubSocket, args=(self.socks[message["description"]], self.ADDR2NAME, message["description"], self.requested[message["description"]], self.metaTopic, MY_NAME))
                             self.threadsLaunched[socks_key].daemon = True
                             self.threadsLaunched[socks_key].start()
                             temp = String()
@@ -446,7 +449,7 @@ class gray_transceiver(object):
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
                         newMsg["port"] = str(portToUse)
-                        newMsg["message type"] = self.requested[message["description"]]
+                        newMsg["message_type"] = self.requested[message["description"]]
 
                         self.socks["meta"].sendto(json.dumps(message), (MCAST_GRP, META_PORT))
 
@@ -457,8 +460,8 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "SEND"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
-                        newMsg["port"] = str(portToUse)
-                        newMsg["message type"] = self.requested[message["description"]]
+                        newMsg["port"] = int(portToUse)
+                        newMsg["message_type"] = self.requested[message["description"]]
 
                         def timerCallback(sock = self.socks["meta"], message = newMsg, timersDict = self.timers, port = str(portToUse)):
                             sock.sendto(json.dumps(message), (MCAST_GRP, META_PORT))
@@ -468,8 +471,8 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "PORT_POLL"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
-                        newMsg["port"] = str(portToUse)
-                        newMsg["message type"] = self.requested[message["description"]]
+                        newMsg["port"] = int(portToUse)
+                        newMsg["message_type"] = self.requested[message["description"]]
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
                         self.portsIUse.append(portToUse)
@@ -484,8 +487,8 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "PORT_TAKEN"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
-                        newMsg["port"] = message["port"]
-                        newMsg["message type"] = message["message type"]
+                        newMsg["port"] = int(message["port"])
+                        newMsg["message_type"] = message["message_type"]
                         newMsg["requestor"] = message["SENDER"]
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
@@ -500,8 +503,8 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "SEND"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
-                        newMsg["port"] = str(portToUse)
-                        newMsg["message type"] = self.requested[message["description"]]
+                        newMsg["port"] = int(portToUse)
+                        newMsg["message_type"] = self.requested[message["description"]]
 
                         def timerCallback(sock = self.socks["meta"], message = newMsg, timersDict = self.timers, port = str(portToUse)):
                             sock.sendto(json.dumps(message), (MCAST_GRP, META_PORT))
@@ -511,8 +514,8 @@ class gray_transceiver(object):
                         newMsg["TYPE"] = "PORT_POLL"
                         newMsg["SENDER"] = MY_NAME
                         newMsg["description"] = message["description"]
-                        newMsg["port"] = str(portToUse)
-                        newMsg["message type"] = self.requested[message["description"]]
+                        newMsg["port"] = int(portToUse)
+                        newMsg["message_type"] = self.requested[message["description"]]
                         self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 
                         self.portsIUse.append(portToUse)
@@ -536,6 +539,7 @@ class gray_transceiver(object):
                         self.availableTopic.publish(topicOfferMsg)
 
 
+
             if not self.requestQ.empty():
                 temp = String()
                 temp.data = "got request"
@@ -547,7 +551,7 @@ class gray_transceiver(object):
                 newMsg["TYPE"] = "REQUEST"
                 newMsg["SENDER"] = MY_NAME
                 newMsg["description"] = newRequest.description
-                newMsg["message type"] = newRequest.type
+                newMsg["message_type"] = newRequest.type
 
                 self.socks["meta"].sendto(json.dumps(newMsg), (MCAST_GRP, META_PORT))
 

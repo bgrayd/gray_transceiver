@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  geometry_msgs
   message_generation
 )
 
@@ -50,6 +51,7 @@ find_package(catkin REQUIRED COMPONENTS
     GxOffer.msg
     GxRequest.msg
     GxMetaTopic.msg
+	twistCommand.msg
   )
 
 ## Generate services in the 'srv' folder
@@ -70,6 +72,7 @@ find_package(catkin REQUIRED COMPONENTS
   generate_messages(
     DEPENDENCIES
     std_msgs
+    geometry_msgs
   )
 
 ################################################
