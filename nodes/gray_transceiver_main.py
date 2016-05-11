@@ -360,8 +360,10 @@ class gray_transceiver(object):
 
                         if message["description"] == "LIDAR":
                             msgType = "sensor_msgs/LaserScan"
-                        else:
+                        elif message["description"] == "ODOM":
                             msgType = "nav_msgs/Odometry"
+                        else:
+                            msgType = message["description"]
 
                         myType = roslib.message.get_message_class(msgType)
                         rospy.Subscriber(TOPICSIHAVE[message["description"]], myType, dynamicCallback)
