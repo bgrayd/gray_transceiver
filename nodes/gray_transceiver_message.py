@@ -102,6 +102,28 @@ class GxTxingMsg(GxMetaTopicInfoMsg):
     def isTxing(self):
         return True
 
+class GxDataMsg(GxMetaTopicInfoMsg):
+    def __init__(self, sender=None, description=None, rosMsgType=None, data=None):
+        super(GxDataMsg).__init__(sender, "DATA", description, rosMsgType)
+        self.data = data
+    def toDict(self):
+        toBeReturned = super(GxDataMsg).toDict()
+        toBeReturned["data"] = self.data
+        return toBeReturned
+
+    def fromDict(self, srcDict):
+        super(GxDataMsg).fromDict(srcDict)
+        self.data = srcDict["data"]
+
+    def setData(self, newData):
+        self.data = newData
+
+    def getData(self):
+        return self.data
+
+    def isData(self):
+        return True
+
 class GxOffersReqMsg(GxBaseMsg):
     def __init__(self, sender=None):
         super(GxOffersRegMsg).__init__(sender, "OFFERS_REQ")
@@ -110,15 +132,26 @@ class GxOffersReqMsg(GxBaseMsg):
         return True
 
 class GxOffersAckMsg(GxBaseMsg):
-    def __init__(self, sender=None):
+    def __init__(self, sender=None, topics=None):
         super(GxOffersAckMsg).__init__(sender, "OFFERS_ACK")
-    def isOffersAck(self):
-        return True
+        self.topics = topics
 
-class GxDataMsg(GxBaseMsg):
-    def __init__(self, sender=None):
-        super(GxDataMsg).__init__(sender, "DATA")
-    def isData(self):
+    def setTopics(self, newTopics):
+        self.topics = newTopics
+
+    def getTopics(self):
+        return self.topics
+
+    def toDict(self):
+        toBeReturned = super(GxOffersAckMsg).toDict()
+        toBeReturned["topics"] = self.topics
+        return toBeReturned
+
+    def fromDict(self, srcDict):
+        super(GxOffersAckMsg).fromDict(srcDict)
+        self.topics = srcDict["topics"]
+
+    def isOffersAck(self):
         return True
 
 class GxMessageFactory(object):
@@ -148,6 +181,10 @@ class GxMessageFactory(object):
             newMsg = GxIHaveMsg()
             newMsg.fromDict(srcDict)
 
+        elif srcDict["TYPE"] == "DATA":
+            newMsg = GxDataMsg()
+            newMsg.fromDict(srcDict)
+
         elif srcDict["TYPE"] == "OFFERS_REQ":
             newMsg = GxOffersReqMsg()
             newMsg.fromDict(srcDict)
@@ -160,4 +197,31 @@ class GxMessageFactory(object):
                     
 
     def fromJSON(self, jsonString):
-        return self.fromDict(json.loads(jsonString))
+        toBeReturned = None
+        try:
+            toBeReturned = self.fromDict(json.loads(jsonString))
+        except:
+            continue
+        return toBeReturned
+
+    def newRequestMsg(self):
+        return GxRequestMsg(sender = self.myName)
+
+    def newSendMsg(self):
+        return GxSendMsg(sender = self.myName)
+            
+    def newTxingMsg(self):
+        return GxTxingMsg(sender = self.myName)
+
+    def newIHaveMsg(self):
+        return GxIHaveMsg(sender = self.myName)
+
+    def newDataMsg(self):
+        return GxDataMsg(sender = self.myName)
+
+    def newOffersReqMsg(self):
+        return GxOffersReqMsg(sender = self.myName)
+
+    def newOffersAckMsg(self):
+        return GxOffersAckMsg(sender = self.myName)
+
