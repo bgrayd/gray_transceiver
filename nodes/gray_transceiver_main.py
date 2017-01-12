@@ -13,7 +13,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from gray_transceiver.msg import GxOffer, GxRequest, GxMetaTopic
 from rospy_message_converter import message_converter, json_message_converter
-
+from gray_transceiver_message import *
 
 from uuid import getnode as get_mac 
 MY_MAC_ADDR = get_mac()
