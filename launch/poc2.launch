@@ -1,0 +1,72 @@
+<launch>
+    <arg name="use_sim_time" default="true"/>
+
+    <node pkg="gray_transceiver" type="hectormapping_launcher.py" name="hectormapping_launcher" />
+    
+    <node pkg="stage_ros" type="stageros" name="stageros" args="$(find gray_transceiver)/nodes/PoC_testing/worlds/map2.world" respawn="false" output="screen" />
+    
+    <node pkg="gray_transceiver" type="basicObstacleAvoidance.py" name="simRobotMove"/>
+
+    <node pkg="gray_transceiver" type="requestor.py" name="requestor"/>
+
+    <node name="R0_MapAlign" pkg="tf" type="static_transform_publisher" args="0 0 0 0 0 0 /map /robot_0/map 100"/>
+    <node name="R1_MapAlign" pkg="tf" type="static_transform_publisher" args="40 0 0 0 0 0 /map /robot_1/map 100"/>
+
+    <param name="robot_description" command="$(find xacro)/xacro.py /home/billy/Desktop/brandon.urdf" />
+
+    <node pkg="gray_transceiver" type="gray_transceiver_main.py" name="gray_transceiver" required="true">
+        <remap from="/scan" to="/base_scan" />
+    </node>
+
+
+    <!--<node pkg="hector_mapping" type="hector_mapping" name="hector_mapping" output="screen" >
+        <param name="pub_map_odom_transform" value="false"/>
+        <param name="map_frame" value="map" />
+        <param name="base_frame" value="base_footprint" />
+        <param name="odom_frame" value="odom" />
+        
+        <param name="map_resolution" value="0.050"/>
+        <param name="map_size" value="2048"/>
+        <param name="map_start_x" value="0.5"/>
+        <param name="map_start_y" value="0.5" />
+        <param name="map_multi_res_levels" value="2" />
+    </node>-->
+
+    <group ns="robot_0">
+        <param name="robot_id" value="1" />
+        <param name="tf_prefix" type="string" value="robot_0"/>
+        <rosparam file="$(find nav2d_tutorials)/param/ros.yaml"/>
+
+        <node name="Mapper" pkg="nav2d_karto" type="mapper">
+            <remap from="karto_in" to="/shared_scans_r2"/>
+            <remap from="karto_out" to="/shared_scans_r1"/>
+            <rosparam file="$(find nav2d_tutorials)/param/mapper.yaml"/>
+        </node>
+
+        <node pkg="robot_state_publisher" type="state_publisher" name="robot_state_publisher">
+            <param name="publish_frequency" type="double" value="30.0"/>
+        </node>
+    
+        <param name="robot_description" command="$(find xacro)/xacro.py /home/billy/Desktop/brandon.urdf" />
+    </group>
+
+    <group ns="robot_1">
+        <param name="robot_id" value="2" />
+        <param name="tf_prefix" type="string" value="robot_1"/>
+        <rosparam file="$(find nav2d_tutorials)/param/ros.yaml"/>
+
+        <node name="Mapper" pkg="nav2d_karto" type="mapper">
+            <remap from="karto_in" to="/shared_scans_r1"/>
+            <remap from="karto_out" to="/shared_scans_r2"/>
+            <rosparam file="$(find nav2d_tutorials)/param/mapper.yaml"/>
+        </node>
+
+        <node pkg="robot_state_publisher" type="state_publisher" name="robot_state_publisher">
+            <param name="publish_frequency" type="double" value="30.0"/>
+        </node>
+
+        <param name="robot_description" command="$(find xacro)/xacro.py /home/billy/Desktop/brandon.urdf" />
+    </group>
+
+
+</launch>

@@ -25,7 +25,7 @@ META_PORT = 1025           #possibly change this to a parameter
 POLLTIMERAMOUNT = 2.5 #seconds
 MY_NAME = rospy.get_param("gray_transceiver/my_name", "robot")#"NOTCHANGED")
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","gray_transceiver/metatopic")
-TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
+TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"joy":"/joy"})#{"LIDAR":"/scan", "ODOM":"/odom"})
 
 MY_IP_ADDR = subprocess.check_output(["ifconfig", "wlan0"]).split("inet addr:")[1].split(" ")[0]
 
@@ -362,6 +362,8 @@ class gray_transceiver(object):
                             msgType = "sensor_msgs/LaserScan"
                         elif message["description"] == "ODOM":
                             msgType = "nav_msgs/Odometry"
+                        elif message["description"] == "joy":
+                            msgType = "sensor_msgs/Joy"
                         else:
                             msgType = message["description"]
 

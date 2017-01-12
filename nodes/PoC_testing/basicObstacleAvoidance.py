@@ -85,15 +85,15 @@ class sandbox_2(object):
 
 			if self.obstacle_detected:
 				# if an obstacle is detected, just turn
-				twist.angular.z = 0.25
+				twist.angular.z = 0.25/3
 				self.cmd_vel_pub.publish(twist)
 			else:
 				# otherwise, go forward
-				twist.linear.x = 0.75   # forward
+				twist.linear.x = 0.75/3   # forward
 				twist.angular.z = 0#0.05  # make it turn a little bit
 				if not self.rightWall:
-					twist.linear.x = 0.3 #move slower
-					twist.angular.z = -0.3
+					twist.linear.x = 0.3/3 #move slower
+					twist.angular.z = -0.3/3
 
 			self.cmd_vel_pub.publish(twist)		# publish our twist message to cmd_vel topic
 

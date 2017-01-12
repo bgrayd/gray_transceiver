@@ -11,6 +11,7 @@ class cmdVelRepub(object):
     def __init__(self):
         rospy.init_node("cmd_vel_repuber")
 
+        #self.cmd_vel_pub = rospy.Publisher("/cmd_vel_mux/input/navi", Twist, queue_size=10)
         self.cmd_vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
         rospy.Subscriber("gray_transceiver/metatopic", GxMetaTopic, self.meta_sub)
 
@@ -39,6 +40,9 @@ class cmdVelRepub(object):
         while not rospy.is_shutdown():
             if not self.twistQueue.empty():
                 message = self.twistQueue.get()
+                self.cmd_vel_pub.publish(message)
+            else:
+                message = Twist()
                 self.cmd_vel_pub.publish(message)
             rate.sleep()
 
