@@ -2,6 +2,8 @@
 
 import json
 
+from gray_transceiver.msg import GxOffer, GxRequest
+
 
 class GxBaseMsg(object):
     def __init__(self, sender, msgType):
@@ -76,6 +78,12 @@ class GxMetaTopicInfoMsg(GxBaseMsg):
 
     def getRosMsgType(self):
         return self.rosMsgType
+
+    def getAsRequest(self):
+        request = GxRequest()
+        request.description = self.description
+        request.type = self.rosMsgType
+        return request
 
 class GxRequestMsg(GxMetaTopicInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
