@@ -30,7 +30,7 @@ MY_IP_ADDR = subprocess.check_output(["ifconfig", "wlan0"]).split("inet addr:")[
 
 
 
-def recvPubSocket(sock, addr2Name, topicName, messageTypeString, metaTopic,myName, maxsize = 65535):
+def recvPubSocket(sock, topicName, messageTypeString, metaTopic,myName, maxsize = 65535):
     publishers = {}
     rate = rospy.Rate(10) #possible change needed
     msgTypeType = roslib.message.get_message_class(messageTypeString)
@@ -97,16 +97,14 @@ class gray_transceiver(object):
         self.metaSockQ = Queue(20)
         self.socks = {}
         self.threadsLaunched = {}
-        self.topics2PortTx = {}
-        self.topics2PortRx = {}
         self.timers = {}
 
-        #TODO: change to desired
-        self.waitingFor = []
+        #these are lists that hold GxRequests.  If something is going wrong, such as it not recognizing that it wants a topic, check the comparision against these
+        self.desired = []   #broadcast topics that you want
+        self.rxing = []     #broadcast topics that you are receiving
+        self.txing = []     #broacast topics that you are transmitting
 
-        #translate the IP address to the name of the sender
-        self.ADDR2NAME = {}
-        self.ADDR2NAME['127.0.1.1'] = "me"
+        self.startedPorts = [] #list of the ports that there is something listening on
 
         self.socks["meta"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
@@ -162,7 +160,7 @@ class gray_transceiver(object):
                     temp.data = "in REQUEST"
                     self.debugTopic.publish(temp)
 
-                    if message.getDescription() in self.topics2PortTx:
+                    if message.getDescription() in self.txing:
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
@@ -182,7 +180,7 @@ class gray_transceiver(object):
                     self.debugTopic.publish(temp)
 
                     #this is where it starts call backs for sending messages
-                    if message.getDescription() in self.topics2PortTx:
+                    if message.getDescription() in self.txing:
                         #do nothing cause you already are transmitting it
                         pass
                     
@@ -200,7 +198,6 @@ class gray_transceiver(object):
                         newMsg = messageFactory.newDataMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-                        #newMsg["port"] = tempPort
                         
                         def dynamicCallback(data, port=tempPort, sock = tempSock, baseMsg = newMsg):#default arguments are evaluated when the function is created, not called 
                             global MCAST_GRP
@@ -210,10 +207,9 @@ class gray_transceiver(object):
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-                        #newMsg["port"] = tempPort
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
-                        self.topics2PortTx[message.getDescription()] = tempPort
+                        self.txing.append(message.getAsRequest())
 
                         #This will need to change, once the format of the parameters is defined
                         #TODO: I think this should be ready to be removed
@@ -233,7 +229,7 @@ class gray_transceiver(object):
                     self.debugTopic.publish(temp)
 
                     #if message["description"] is something you want, make sure it is listened to
-                    if message.getDescription() in self.waitingFor: #TODO: change to desired
+                    if message.getDescription() in self.desired:
 
                         #This is insanity. I think I had stuff in the wrong order or something, idk
                         #  but this needs to go.  Instead, have something like:
@@ -248,11 +244,11 @@ class gray_transceiver(object):
                             self.socks[message.getDescription()].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[message.getDescription()].bind((MCAST_GRP, portHashFromMsg(message)))
 
-                            self.threadsLaunched[message.getDescription()] = threading.Thread(target=recvPubSocket, args=(self.socks[message.getDescription()], self.ADDR2NAME, message.getDescription(), message.getRosMsgType(), self.metaTopic, MY_NAME))
+                            self.threadsLaunched[message.getDescription()] = threading.Thread(target=recvPubSocket, args=(self.socks[message.getDescription()], message.getDescription(), message.getRosMsgType(), self.metaTopic, MY_NAME))
                             self.threadsLaunched[message.getDescription()].daemon = True
                             self.threadsLaunched[message.getDescription()].start()
 
-                            self.topics2PortRx[message.getDescription()] = portHashFromMsg(message)
+                            self.rxing.append(message.getAsRequest())
 
                         #Is the if necessary? Since the above creates it if it doesn't have it,
                         #   shouldn't it always execute?  TODO
@@ -263,28 +259,22 @@ class gray_transceiver(object):
                             self.socks[socks_key].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                             self.socks[socks_key].bind((MCAST_GRP, portHashFromMsg(message)))
 
-                            self.threadsLaunched[socks_key] = threading.Thread(target=recvPubSocket, args=(self.socks[message.getDescription()], self.ADDR2NAME, message.getDescription(), message.getRosMsgType(), self.metaTopic, MY_NAME))
+                            self.threadsLaunched[socks_key] = threading.Thread(target=recvPubSocket, args=(self.socks[message.getDescription()], message.getDescription(), message.getRosMsgType(), self.metaTopic, MY_NAME))
                             self.threadsLaunched[socks_key].daemon = True
                             self.threadsLaunched[socks_key].start()
 
-                            self.topics2PortRx[socks_key] = portHashFromMsg(message)
+                            self.rxing.append(message.getAsRequest())
 
                 elif message.isIHave():
-                    
-                    #check against a list of messages you want but haven't heard back about yet
-                    #if someone has something you want, set a timer, for a small amount of time,
-                    #   after the timer goes off, if no one has said they are already txing it, 
-                    #   send out a poll for the next port to use
-                    #may also want the Txing to keep a dictionary of each that it has seen, with the port as the key
 
-                    if message.getDescription() in self.topics2PortTx:
+                    if message.getDescription() in self.txing:
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
 
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
-                    elif message.getDescription() in self.waitingFor:
+                    elif message.getDescription() in self.desired:
                         newMsg = messageFactory.newSendMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
@@ -326,11 +316,9 @@ class gray_transceiver(object):
                 self.timers["request_"+newRequest.description].daemon = True
                 self.timers["request_"+newRequest.description].start()
 
-
-
                 #myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
-                self.waitingFor.append(newRequest.description) #might be able to remove after PoC testing
+                self.desired.append(newRequest) #need to make sure that the comparision will work right
 
             if self.metaSockQ.empty() and self.requestQ.empty():
                 rate.sleep()                        # nothing to process yet, sleep longer
