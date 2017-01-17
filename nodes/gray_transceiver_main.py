@@ -155,18 +155,20 @@ class gray_transceiver(object):
             if not self.metaSockQ.empty():
                 message = messageFactory.fromJSON(self.metaSockQ.get())
 
+                #Someone is requesting a broadcast topic
                 if message.isRequest():
                     temp = String()
                     temp.data = "in REQUEST"
                     self.debugTopic.publish(temp)
 
+                    #if your are transmitting it, tell them you are
                     if message.getDescription() in self.txing:
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
-
+                    #otherwise, tell them if you have it
                     elif message.getDescription() in TOPICSIHAVE:
                         newMsg = messageFactory.newIHaveMsg()
                         newMsg.setDescription(message.getDescription())
@@ -174,21 +176,21 @@ class gray_transceiver(object):
 
                         self.socks["meta"].sendto(newMsg.toJSON() ,(MCAST_GRP, META_PORT))
 
+                #Someone is asking a broadcast topic to be sent
                 elif message.isSend():
                     temp = String()
                     temp.data = "in SEND"
                     self.debugTopic.publish(temp)
 
-                    #this is where it starts call backs for sending messages
+                    #It is already being transmitted, do nothing
                     if message.getDescription() in self.txing:
-                        #do nothing cause you already are transmitting it
                         pass
                     
+                    #otherwise, if you have the topic, start sending it
                     elif message.getDescription() in TOPICSIHAVE:
                         if message.getDescription() not in self.socks:
                             self.socks[message.getDescription()] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
-                        #self.host = socket.gethostbyname(socket.gethostname())
                         self.socks[message.getDescription()].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
                         self.socks[message.getDescription()].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
                         self.socks[message.getDescription()].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
@@ -198,7 +200,8 @@ class gray_transceiver(object):
                         newMsg = messageFactory.newDataMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-                        
+
+                        #set up the callback for the local topic that will be transmitted                        
                         def dynamicCallback(data, port=tempPort, sock = tempSock, baseMsg = newMsg):#default arguments are evaluated when the function is created, not called 
                             global MCAST_GRP
                             baseMsg.setData(message_converter.convert_ros_message_to_dictionary(data))
@@ -223,6 +226,7 @@ class gray_transceiver(object):
                         myType = roslib.message.get_message_class(msgType)
                         rospy.Subscriber(TOPICSIHAVE[message.getDescription()], myType, dynamicCallback)
 
+                #Someone is saying that they are transmitting a broadcast topic
                 elif message.isTxing():
                     temp = String()
                     temp.data = "in TXING"
@@ -250,8 +254,7 @@ class gray_transceiver(object):
 
                             self.rxing.append(message.getAsRequest())
 
-                        #Is the if necessary? Since the above creates it if it doesn't have it,
-                        #   shouldn't it always execute?  TODO
+                        #TODO remove this like above
                         if message.getDescription() in self.threadsLaunched:
                             socks_key = message.getDescription() + str(portHashFromMsg(message))
                             self.socks[socks_key] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
@@ -265,8 +268,10 @@ class gray_transceiver(object):
 
                             self.rxing.append(message.getAsRequest())
 
+                #Someone is saying that they have a broadcast topic
                 elif message.isIHave():
 
+                    #if the broadcast topic is one you are transmitting, say that it is being transmitted
                     if message.getDescription() in self.txing:
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
@@ -274,6 +279,7 @@ class gray_transceiver(object):
 
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
+                    #otherwise, if it is something you want, tell them to send it
                     elif message.getDescription() in self.desired:
                         newMsg = messageFactory.newSendMsg()
                         newMsg.setDescription(message.getDescription())
@@ -281,11 +287,13 @@ class gray_transceiver(object):
 
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
+                #Someone asked what broadcast topics are available
                 elif message.isOffersReq():
                     newMsg = messageFactory.newOffersAckMsg()
                     newMsg.setTopics(TOPICSIHAVE)
                     self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
+                #A response to a request of what topics are available
                 elif message.isOffersAck():
                     for key,data in message.getTopics():
                         topicOfferMsg = GxOffer() #TODO: Should this be a request instead? Since it shouldn't need the topic name?
@@ -293,6 +301,7 @@ class gray_transceiver(object):
                         topicOfferMsg.type = data
                         self.availableTopic.publish(topicOfferMsg)
 
+            #check the request queue to see if there are any requests for new broadcast topics
             if not self.requestQ.empty():
                 temp = String()
                 temp.data = "got request"
@@ -300,6 +309,7 @@ class gray_transceiver(object):
                 
                 newRequest = self.requestQ.get()
 
+                #Send a request for the broadcast topic, and set up a timer to continue occasionally asking for it
                 newMsg = messageFactory.newRequestMsg()
                 newMsg.setDescription(newRequest.description)
                 newMsg.setRosMsgType(newRequest.type)
