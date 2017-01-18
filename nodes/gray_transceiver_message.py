@@ -6,7 +6,7 @@ from gray_transceiver.msg import GxTopicMetaInformation
 
 
 class GxBaseMsg(object):
-    def __init__(self, sender, msgType):
+    def __init__(self, sender = None, msgType = None):
         self.sender = sender
         self.msgType = msgType
 
@@ -52,7 +52,7 @@ class GxBaseMsg(object):
 
 class GxTopicMetaInfoMsg(GxBaseMsg):
     def __init__(self, sender=None, msgType=None, description=None, rosMsgType=None):
-        super(GxTopicMetaInfoMsg, self).__init__(sender, "REQUEST")
+        super(GxTopicMetaInfoMsg, self).__init__(sender, msgType)
         self.description = description
         self.rosMsgType = rosMsgType
 
@@ -208,8 +208,8 @@ class GxMessageFactory(object):
         toBeReturned = None
         try:
             toBeReturned = self.fromDict(json.loads(jsonString))
-        except:
-            pass
+        except Exception as ex:
+            print ex
         return toBeReturned
 
     def newRequestMsg(self):

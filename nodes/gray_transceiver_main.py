@@ -12,7 +12,7 @@ from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from gray_transceiver.msg import GxTopicMetaInformation, GxMetaTopic
-from gray_transceiver.srv import GxOffer, GxRequest, GxOfferResponse, GxRequestResponse
+from gray_transceiver.srv import GxOffer, GxRequest, GxOfferResponse, GxRequestResponse #TODO: consider replacing with import *
 from rospy_message_converter import message_converter, json_message_converter
 from gray_transceiver_message import *
 
@@ -20,16 +20,17 @@ from uuid import getnode as get_mac
 MY_MAC_ADDR = get_mac()
 
 
-MCAST_GRP = '224.1.1.1' #change this to use a parameter
+MCAST_GRP = '224.1.1.1' #change this to use a parameter   #TODO: testing changed '224.1.1.1' to ''
 META_PORT = 1025        #possibly change this to a parameter
-MY_NAME = MY_MAC_ADDR
+MY_NAME = str(MY_MAC_ADDR)
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","gray_transceiver/metatopic")
 TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
 
-MY_IP_ADDR = subprocess.check_output(["ifconfig", "wlan0"]).split("inet addr:")[1].split(" ")[0]
+MY_IP_ADDR = subprocess.check_output(["ifconfig", "lo"]).split("inet addr:")[1].split(" ")[0] #TODO: testing changed wlan0 to lo
 
 
 
+#TODO: change so it checks the topic meta information, so it needs to use the message class
 def recvPubSocket(sock, topicName, messageTypeString, metaTopic,myName, maxsize = 65535):
     publishers = {}
     rate = rospy.Rate(10) #possible change needed
@@ -40,7 +41,7 @@ def recvPubSocket(sock, topicName, messageTypeString, metaTopic,myName, maxsize 
     while True:
         try:
             data2, addr = sock.recvfrom(maxsize)
-            #TODO: consider using the message data class
+            #TODO: use the message data class
             message = json.loads(data2)
             try:
                 data = message_converter.convert_dictionary_to_ros_message(messageTypeString, message["data"])
@@ -55,10 +56,10 @@ def recvPubSocket(sock, topicName, messageTypeString, metaTopic,myName, maxsize 
             publishers[senderDomain].publish(data)
         else:
             newMsg = GxMetaTopic()
-            newMsg.myName = myName
-            newMsg.name = str(senderDomain)+'/'+str(topicName)
+            newMsg.myName = str(myName)
+            newMsg.name = 'foreign/'+str(senderDomain)+'/'+str(topicName)
             newMsg.type = str(messageTypeString)
-            publishers[senderDomain] = rospy.Publisher(str(senderDomain)+'/'+str(topicName), msgTypeType, queue_size=10)
+            publishers[senderDomain] = rospy.Publisher('foreign/'+str(senderDomain)+'/'+str(topicName), msgTypeType, queue_size=10)
             metaTopic.publish(newMsg)
             publishers[senderDomain].publish(data)
         rate.sleep()
@@ -76,14 +77,15 @@ def recvQueSocket(sock, queue, maxsize = 1024):
         rate.sleep()
 
 def portHash(description=None, rosMsgType=None):
+    #exceptions should return a negative number
     return 1026
 
 def portHashFromMsg(msg):
-    #TODO: consider exception handaling here, such as returning a negative
+    #TODO: exceptions should return a negative number
     return int(portHash(msg.getDescription(), msg.getRosMsgType()))
 
 def portHashFromTopicMetaInfo(request):
-    #TODO: consider exception handaling here, such as returning a negative
+    #TODO: exceptions should return a negative number
     return int(portHash(request.description(), request.type()))
 
 class gray_transceiver(object):
@@ -101,16 +103,16 @@ class gray_transceiver(object):
         self.offersAvailable = {}
 
         #these are lists that hold GxTopicMetaInformations.  If something is going wrong, such as it not recognizing that it wants a topic, check the comparision against these
-        self.desired = []   #broadcast topics that you want
-        self.rxing = []     #broadcast topics that you are receiving
-        self.txing = []     #broacast topics that you are transmitting
+        self.desired = []   #broadcast topics (as strings) that you want
+        self.rxing = []     #broadcast topics (as strings) that you are receiving
+        self.txing = []     #broacast topics (as strings) that you are transmitting
 
         self.startedPorts = [] #list of the ports that there is something listening on
 
         self.socks["meta"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
         self.socks["meta"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socks["meta"].bind((MCAST_GRP, META_PORT))
+        self.socks["meta"].bind(('', META_PORT)) #TODO: testing changed MCAST_GRP to ''
         self.host = MY_IP_ADDR#socket.gethostbyname(socket.gethostname())
         self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
         self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
@@ -139,7 +141,8 @@ class gray_transceiver(object):
         '''
         This function gets called everytime a message is published over the /gray_transceiver/offers topic.
         '''
-        self.offersAvailable[data.topicMetaInfo] = {"topicMetaInfo":data.topicMetaInfo, "topicName":data.topicName}
+        self.offersAvailable[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "topicName":data.topicName}
+        print(self.offersAvailable)
         return GxOfferResponse(True)
         
     def run(self):
@@ -164,18 +167,17 @@ class gray_transceiver(object):
                     self.debugTopic.publish(temp)
 
                     #if your are transmitting it, tell them you are
-                    if message.getDescription() in self.txing:
+                    if str(message.getTopicMetaInformation()) in self.txing:
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                     #otherwise, tell them if you have it
-                    elif message.getTopicMetaInformation() in self.offersAvailable:
+                    elif str(message.getTopicMetaInformation()) in self.offersAvailable:
                         newMsg = messageFactory.newIHaveMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-
                         self.socks["meta"].sendto(newMsg.toJSON() ,(MCAST_GRP, META_PORT))
 
                 #Someone is asking a broadcast topic to be sent
@@ -185,11 +187,12 @@ class gray_transceiver(object):
                     self.debugTopic.publish(temp)
 
                     #It is already being transmitted, do nothing
-                    if message.getDescription() in self.txing:
-                        pass
+                    if str(message.getTopicMetaInformation()) in self.txing:
+                        temp.data = "thinks it is already sending"
+                        self.debugTopic.publish(temp)
                     
                     #otherwise, if you have the topic, start sending it
-                    elif message.getTopicMetaInformation() in self.offersAvailable:
+                    elif str(message.getTopicMetaInformation()) in self.offersAvailable:
                         if message.getDescription() not in self.socks:
                             self.socks[message.getDescription()] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 
@@ -214,19 +217,12 @@ class gray_transceiver(object):
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
-                        self.txing.append(message.getAsRequest())
+                        self.txing.append(str(message.getTopicMetaInformation()))
 
-                        #This will need to change, once the format of the parameters is defined
-                        #TODO: I think this should be ready to be removed
-                        if message["description"] == "LIDAR":
-                            msgType = "sensor_msgs/LaserScan"
-                        elif message["description"] == "ODOM":
-                            msgType = "nav_msgs/Odometry"
-                        else:
-                            msgType = message.getRosMsgType()
+                        msgType = message.getRosMsgType()
 
                         myType = roslib.message.get_message_class(msgType)
-                        rospy.Subscriber(message.getRosMsgType(), myType, dynamicCallback)
+                        rospy.Subscriber(self.offersAvailable[str(message.getTopicMetaInformation())]["topicName"], myType, dynamicCallback)
 
                 #Someone is saying that they are transmitting a broadcast topic
                 elif message.isTxing():
@@ -235,7 +231,7 @@ class gray_transceiver(object):
                     self.debugTopic.publish(temp)
 
                     #if message["description"] is something you want, make sure it is listened to
-                    if message.getDescription() in self.desired:
+                    if str(message.getTopicMetaInformation()) in self.desired:
 
                         #This is insanity. I think I had stuff in the wrong order or something, idk
                         #  but this needs to go.  Instead, have something like:
@@ -254,7 +250,7 @@ class gray_transceiver(object):
                             self.threadsLaunched[message.getDescription()].daemon = True
                             self.threadsLaunched[message.getDescription()].start()
 
-                            self.rxing.append(message.getAsRequest())
+                            self.rxing.append(str(message.getTopicMetaInformation()))
 
                         #TODO remove this like above
                         if message.getDescription() in self.threadsLaunched:
@@ -268,13 +264,13 @@ class gray_transceiver(object):
                             self.threadsLaunched[socks_key].daemon = True
                             self.threadsLaunched[socks_key].start()
 
-                            self.rxing.append(message.getAsRequest())
+                            self.rxing.append(str(message.getTopicMetaInformation()))
 
                 #Someone is saying that they have a broadcast topic
                 elif message.isIHave():
 
                     #if the broadcast topic is one you are transmitting, say that it is being transmitted
-                    if message.getDescription() in self.txing:
+                    if str(message.getTopicMetaInformation()) in self.txing:
                         newMsg = messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
@@ -282,7 +278,7 @@ class gray_transceiver(object):
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                     #otherwise, if it is something you want, tell them to send it
-                    elif message.getDescription() in self.desired:
+                    elif str(message.getTopicMetaInformation()) in self.desired:
                         newMsg = messageFactory.newSendMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
@@ -304,6 +300,7 @@ class gray_transceiver(object):
                         self.availableTopic.publish(topicOfferMsg)
 
             #check the request queue to see if there are any requests for new broadcast topics
+            #TODO: move all of this into the service
             if not self.requestQ.empty():
                 temp = String()
                 temp.data = "got request"
@@ -315,8 +312,6 @@ class gray_transceiver(object):
                 newMsg = messageFactory.newRequestMsg()
                 newMsg.setDescription(newRequest.description)
                 newMsg.setRosMsgType(newRequest.type)
-
-                self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                 def myTimer(timeSec = 100, msg = newMsg, sock = self.socks["meta"]):
                     import time
@@ -330,7 +325,7 @@ class gray_transceiver(object):
 
                 #myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
 
-                self.desired.append(newRequest) #need to make sure that the comparision will work right
+                self.desired.append(str(newRequest)) #need to make sure that the comparision will work right
 
             if self.metaSockQ.empty() and self.requestQ.empty():
                 rate.sleep()                        # nothing to process yet, sleep longer
