@@ -48,18 +48,19 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
   add_message_files(
     FILES
-    GxOffer.msg
-    GxRequest.msg
+    #GxOffer.msg
+    #GxRequest.msg
     GxMetaTopic.msg
-	twistCommand.msg
+    GxTopicMetaInformation.msg
+	  twistCommand.msg
   )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+  add_service_files(
+    FILES
+    GxOffer.srv
+    GxRequest.srv
+  )
 
 ## Generate actions in the 'action' folder
 # add_action_files(

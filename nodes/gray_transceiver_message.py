@@ -2,7 +2,7 @@
 
 import json
 
-from gray_transceiver.msg import GxOffer, GxRequest
+from gray_transceiver.msg import GxTopicMetaInformation
 
 
 class GxBaseMsg(object):
@@ -50,20 +50,20 @@ class GxBaseMsg(object):
     def isData(self):
         return False
 
-class GxMetaTopicInfoMsg(GxBaseMsg):
+class GxTopicMetaInfoMsg(GxBaseMsg):
     def __init__(self, sender=None, msgType=None, description=None, rosMsgType=None):
-        super(GxMetaTopicInfoMsg).__init__(sender, "REQUEST")
+        super(GxTopicMetaInfoMsg).__init__(sender, "REQUEST")
         self.description = description
         self.rosMsgType = rosMsgType
 
     def toDict(self):
-        toBeReturned = super(GxMetaTopicInfoMsg).toDict()
+        toBeReturned = super(GxTopicMetaInfoMsg).toDict()
         toBeReturned["description"] = self.description
         toBeReturned["message_type"] = self.rosMsgType
         return toBeReturned
 
     def fromDict(self, srcDict):
-        super(GxMetaTopicInfoMsg).fromDict(srcDict)
+        super(GxTopicMetaInfoMsg).fromDict(srcDict)
         self.description = srcDict["description"]
         self.rosMsgType = srcDict["message_type"]
 
@@ -79,38 +79,38 @@ class GxMetaTopicInfoMsg(GxBaseMsg):
     def getRosMsgType(self):
         return self.rosMsgType
 
-    def getAsRequest(self):
-        request = GxRequest()
-        request.description = self.description
-        request.type = self.rosMsgType
-        return request
+    def getTopicMetaInformation(self):
+        data = GxTopicMetaInformation()
+        data.description = self.description
+        data.type = self.rosMsgType
+        return data
 
-class GxRequestMsg(GxMetaTopicInfoMsg):
+class GxRequestMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
         super(GxRequestMsg).__init__(sender, "REQUEST", description, rosMsgType)
 
     def isRequest(self):
         return True
 
-class GxSendMsg(GxMetaTopicInfoMsg):
+class GxSendMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
         super(GxSendMsg).__init__(sender, "SEND", description, rosMsgType)
     def isSend(self):
         return True
 
-class GxIHaveMsg(GxMetaTopicInfoMsg):
+class GxIHaveMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
         super(GxIHaveMsg).__init__(sender, "IHAVE", description, rosMsgType)
     def isIHave(self):
         return True
 
-class GxTxingMsg(GxMetaTopicInfoMsg):
+class GxTxingMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
         super(GxTxingMsg).__init__(sender, "TXING", description, rosMsgType)
     def isTxing(self):
         return True
 
-class GxDataMsg(GxMetaTopicInfoMsg):
+class GxDataMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None, data=None):
         super(GxDataMsg).__init__(sender, "DATA", description, rosMsgType)
         self.data = data

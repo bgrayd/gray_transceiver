@@ -1,0 +1,4 @@
+GxTopicMetaInformation topicMetaInfo
+string topicName
+---
+bool completed
