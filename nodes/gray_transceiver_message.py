@@ -52,18 +52,18 @@ class GxBaseMsg(object):
 
 class GxTopicMetaInfoMsg(GxBaseMsg):
     def __init__(self, sender=None, msgType=None, description=None, rosMsgType=None):
-        super(GxTopicMetaInfoMsg).__init__(sender, "REQUEST")
+        super(GxTopicMetaInfoMsg, self).__init__(sender, "REQUEST")
         self.description = description
         self.rosMsgType = rosMsgType
 
     def toDict(self):
-        toBeReturned = super(GxTopicMetaInfoMsg).toDict()
+        toBeReturned = super(GxTopicMetaInfoMsg, self).toDict()
         toBeReturned["description"] = self.description
         toBeReturned["message_type"] = self.rosMsgType
         return toBeReturned
 
     def fromDict(self, srcDict):
-        super(GxTopicMetaInfoMsg).fromDict(srcDict)
+        super(GxTopicMetaInfoMsg, self).fromDict(srcDict)
         self.description = srcDict["description"]
         self.rosMsgType = srcDict["message_type"]
 
@@ -87,40 +87,40 @@ class GxTopicMetaInfoMsg(GxBaseMsg):
 
 class GxRequestMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
-        super(GxRequestMsg).__init__(sender, "REQUEST", description, rosMsgType)
+        super(GxRequestMsg, self).__init__(sender, "REQUEST", description, rosMsgType)
 
     def isRequest(self):
         return True
 
 class GxSendMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
-        super(GxSendMsg).__init__(sender, "SEND", description, rosMsgType)
+        super(GxSendMsg, self).__init__(sender, "SEND", description, rosMsgType)
     def isSend(self):
         return True
 
 class GxIHaveMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
-        super(GxIHaveMsg).__init__(sender, "IHAVE", description, rosMsgType)
+        super(GxIHaveMsg, self).__init__(sender, "IHAVE", description, rosMsgType)
     def isIHave(self):
         return True
 
 class GxTxingMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
-        super(GxTxingMsg).__init__(sender, "TXING", description, rosMsgType)
+        super(GxTxingMsg, self).__init__(sender, "TXING", description, rosMsgType)
     def isTxing(self):
         return True
 
 class GxDataMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None, data=None):
-        super(GxDataMsg).__init__(sender, "DATA", description, rosMsgType)
+        super(GxDataMsg, self).__init__(sender, "DATA", description, rosMsgType)
         self.data = data
     def toDict(self):
-        toBeReturned = super(GxDataMsg).toDict()
+        toBeReturned = super(GxDataMsg, self).toDict()
         toBeReturned["data"] = self.data
         return toBeReturned
 
     def fromDict(self, srcDict):
-        super(GxDataMsg).fromDict(srcDict)
+        super(GxDataMsg, self).fromDict(srcDict)
         self.data = srcDict["data"]
 
     def setData(self, newData):
@@ -134,14 +134,14 @@ class GxDataMsg(GxTopicMetaInfoMsg):
 
 class GxOffersReqMsg(GxBaseMsg):
     def __init__(self, sender=None):
-        super(GxOffersRegMsg).__init__(sender, "OFFERS_REQ")
+        super(GxOffersRegMsg, self).__init__(sender, "OFFERS_REQ")
 
     def isOffersReq(self):
         return True
 
 class GxOffersAckMsg(GxBaseMsg):
     def __init__(self, sender=None, topics=None):
-        super(GxOffersAckMsg).__init__(sender, "OFFERS_ACK")
+        super(GxOffersAckMsg, self).__init__(sender, "OFFERS_ACK")
         self.topics = topics
 
     def setTopics(self, newTopics):
@@ -151,12 +151,12 @@ class GxOffersAckMsg(GxBaseMsg):
         return self.topics
 
     def toDict(self):
-        toBeReturned = super(GxOffersAckMsg).toDict()
+        toBeReturned = super(GxOffersAckMsg, self).toDict()
         toBeReturned["topics"] = self.topics
         return toBeReturned
 
     def fromDict(self, srcDict):
-        super(GxOffersAckMsg).fromDict(srcDict)
+        super(GxOffersAckMsg, self).fromDict(srcDict)
         self.topics = srcDict["topics"]
 
     def isOffersAck(self):
@@ -209,7 +209,7 @@ class GxMessageFactory(object):
         try:
             toBeReturned = self.fromDict(json.loads(jsonString))
         except:
-            continue
+            pass
         return toBeReturned
 
     def newRequestMsg(self):

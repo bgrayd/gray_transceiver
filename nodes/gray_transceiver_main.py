@@ -12,7 +12,7 @@ from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from gray_transceiver.msg import GxTopicMetaInformation, GxMetaTopic
-from gray_transceiver.srv import GxOffer, GxRequest
+from gray_transceiver.srv import GxOffer, GxRequest, GxOfferResponse, GxRequestResponse
 from rospy_message_converter import message_converter, json_message_converter
 from gray_transceiver_message import *
 
@@ -174,7 +174,7 @@ class gray_transceiver(object):
                     elif message.getTopicMetaInformation() in self.offersAvailable:
                         newMsg = messageFactory.newIHaveMsg()
                         newMsg.setDescription(message.getDescription())
-                        newMsg.setRosMsgType(message.getRosMsgType()]
+                        newMsg.setRosMsgType(message.getRosMsgType())
 
                         self.socks["meta"].sendto(newMsg.toJSON() ,(MCAST_GRP, META_PORT))
 
