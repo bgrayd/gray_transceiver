@@ -17,25 +17,6 @@ class requester(object):
         '''
         Do the initial requests and then do nothing
         '''
-        
-        rospy.wait_for_service('gray_transceiver/requests')
-        try:
-            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
-            odomRequest = GxTopicMetaInformation()
-            odomRequest.description = "ODOM"
-            odomRequest.type = "nav_msgs/Odometry"
-            resp1 = request(odomRequest)
-        except rospy.ServiceException, e:
-            print "Odom request service call failed: %s"%e
-
-        try:
-            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
-            lidarRequest = GxTopicMetaInformation()
-            lidarRequest.description = "LIDAR"
-            lidarRequest.type = "sensor_msgs/LaserScan"
-            #resp2 = request(lidarRequest)
-        except rospy.ServiceException, e:
-            print "Lidar request service call failed: %s"%e
 
         rospy.wait_for_service('gray_transceiver/offers')
         try:
@@ -52,9 +33,28 @@ class requester(object):
             lidarOffer = GxTopicMetaInformation()
             lidarOffer.description = "LIDAR"
             lidarOffer.type = "sensor_msgs/LaserScan"
-            resp4 = offer(lidarOffer, "/scan")
+            resp4 = offer(lidarOffer, "/base_scan")
         except rospy.ServiceException, e:
             print "Lidar offer service call failed: %s"%e
+        
+        rospy.wait_for_service('gray_transceiver/requests')
+        try:
+            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
+            odomRequest = GxTopicMetaInformation()
+            odomRequest.description = "ODOM"
+            odomRequest.type = "nav_msgs/Odometry"
+            resp1 = request(odomRequest)
+        except rospy.ServiceException, e:
+            print "Odom request service call failed: %s"%e
+
+        try:
+            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
+            lidarRequest = GxTopicMetaInformation()
+            lidarRequest.description = "LIDAR"
+            lidarRequest.type = "sensor_msgs/LaserScan"
+            resp2 = request(lidarRequest)
+        except rospy.ServiceException, e:
+            print "Lidar request service call failed: %s"%e
         
         rospy.spin()
 

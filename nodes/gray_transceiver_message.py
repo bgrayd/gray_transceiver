@@ -3,6 +3,7 @@
 import json
 
 from gray_transceiver.msg import GxTopicMetaInformation
+from rospy_message_converter import message_converter, json_message_converter
 
 
 class GxBaseMsg(object):
@@ -22,6 +23,9 @@ class GxBaseMsg(object):
     def fromDict(self, srcDict):
         self.sender = srcDict["SENDER"]
         self.msgType = srcDict["TYPE"]
+
+    def fromJSON(self, srcJSON):
+        self.fromDict(json.loads(srcJSON))
 
     def toDict(self):
         return {"TYPE":self.msgType, "SENDER":self.sender}
@@ -114,20 +118,42 @@ class GxDataMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None, data=None):
         super(GxDataMsg, self).__init__(sender, "DATA", description, rosMsgType)
         self.data = data
+
     def toDict(self):
         toBeReturned = super(GxDataMsg, self).toDict()
-        toBeReturned["data"] = self.data
+        toBeReturned["data"] = self.getDataAsDict()
         return toBeReturned
 
     def fromDict(self, srcDict):
         super(GxDataMsg, self).fromDict(srcDict)
-        self.data = srcDict["data"]
+        self.setDataFromDict(srcDict["data"])
 
-    def setData(self, newData):
-        self.data = newData
+    def fromSocket(self, source):
+        self.fromJSON(source) #so that in the future, other packaging methods can more easily be tested
 
-    def getData(self):
+    def toSocket(self):
+        return self.toJSON() #so that in the future, other packaging methods can more easily be tested
+
+    def setDataFromDict(self, data):
+        try:
+            self.data = message_converter.convert_dictionary_to_ros_message(self.rosMsgType, data)
+        except Exception as ex:
+            self.data = message_converter.convert_dictionary_to_ros_message(self.rosMsgType, json.loads(data))
+
+    def setDataFromRosMsg(self, rosMsg):
+        self.data = rosMsg
+
+    def getDataAsDict(self):
+        return message_converter.convert_ros_message_to_dictionary(self.data)
+
+    def getDataAsRosMsg(self):
         return self.data
+
+    #def setData(self, newData):
+    #    self.data = newData
+
+    #def getData(self):
+    #    return self.data
 
     def isData(self):
         return True
