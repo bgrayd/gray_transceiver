@@ -60,8 +60,6 @@ class gray_transceiver_port(object):
         if str(data.topicMetaInfo) in self.broadcastTopicsToTransmit:
             return GxOfferResponse(True)
 
-        print(str(data))
-
         self.broadcastTopicsToTransmit.append(str(data.topicMetaInfo))
 
         if not self.transmitStarted:
@@ -77,8 +75,6 @@ class gray_transceiver_port(object):
         newMsg = self.messageFactory.newDataMsg()
         newMsg.setDescription(data.topicMetaInfo.description)
         newMsg.setRosMsgType(data.topicMetaInfo.type)
-
-        print("Just before the dynamic callback")
 
         #set up the callback for the local topic that will be transmitted                        
         def dynamicCallback(data, port=self.port, sock = self.transmitSocket, baseMsg = newMsg):#default arguments are evaluated when the function is created, not called 

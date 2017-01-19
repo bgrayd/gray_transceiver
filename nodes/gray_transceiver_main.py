@@ -109,10 +109,6 @@ class gray_transceiver(object):
       self.portNodes = []
 
     def setUpPort(self, topicMetaInfo):
-        temp = String()
-        temp.data = "start setUpPort"
-        self.debugTopic.publish(temp)
-
         newPortNumber = portHashFromTopicMetaInfo(topicMetaInfo)
         if newPortNumber not in self.startedPorts:
             self.startedPorts.append(newPortNumber)
@@ -128,31 +124,15 @@ class gray_transceiver(object):
             newPort = roslaunch.core.Node(package, executable,name=nodeName, namespace=nodeNamespace, args=arguments)
             self.portNodes.append(self.launch.launch(newPort))
 
-        temp = String()
-        temp.data = "end setUpPort"
-        self.debugTopic.publish(temp)
-
         return newPortNumber
 
     def startTransmitting(self, broadcastTopic):
-        temp = String()
-        temp.data = "start startTransmitting"
-        self.debugTopic.publish(temp)
-
         if str(broadcastTopic) in self.txing:
             return
         print(broadcastTopic)
         newPortNumber = self.setUpPort(broadcastTopic)
-        
-        temp = String()
-        temp.data = "before wait for service"
-        self.debugTopic.publish(temp)
 
         rospy.wait_for_service("/gray_transceiver/port"+str(newPortNumber)+"/transmit")
-
-        temp = String()
-        temp.data = "after wait for service"
-        self.debugTopic.publish(temp)
 
         transmitRequest = rospy.ServiceProxy("/gray_transceiver/port"+str(newPortNumber)+"/transmit", GxOffer)
         transmitRequest(broadcastTopic, self.offersAvailable[str(broadcastTopic)]["topicName"])
@@ -171,9 +151,6 @@ class gray_transceiver(object):
         '''
         This function gets called everytime someone wants to use the request service
         '''
-        temp = String()
-        temp.data = "in requests callback"
-        self.debugTopic.publish(temp)
         self.requestQ.put(data.topicMetaInfo)
         return GxRequestResponse(True)
 
@@ -182,7 +159,6 @@ class gray_transceiver(object):
         This function gets called everytime a message is published over the /gray_transceiver/offers topic.
         '''
         self.offersAvailable[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "topicName":data.topicName}
-        print(self.offersAvailable)
         return GxOfferResponse(True)
         
     def run(self):
