@@ -47,16 +47,27 @@ def recvQueSocket(sock, queue, maxsize = 1024):
         queue.put(data)
         rate.sleep()
 
+def hashString(string):
+    h = 0
+    for each in string:
+        h = (h << 11) ^ (h >>3) ^ ord(each)
+    return h
+
+
 def portHash(description=None, rosMsgType=None):
-    #exceptions should return a negative number
-    return 1026
+    #return 1026
+    hash1 = hashString(description)
+    hash2 = hashString(rosMsgType)
+    hash3 = hash1 ^ hash2
+    hash4 = hash3 % 65535
+    if hash4 <= META_PORT:
+        return hash4 + META_PORT
+    return hash4 
 
 def portHashFromMsg(msg):
-    #TODO: exceptions should return a negative number
     return int(portHash(msg.getDescription(), msg.getRosMsgType()))
 
 def portHashFromTopicMetaInfo(request):
-    #TODO: exceptions should return a negative number
     return int(portHash(request.description, request.type))
 
 class gray_transceiver(object):
@@ -129,7 +140,6 @@ class gray_transceiver(object):
     def startTransmitting(self, broadcastTopic):
         if str(broadcastTopic) in self.txing:
             return
-        print(broadcastTopic)
         newPortNumber = self.setUpPort(broadcastTopic)
 
         rospy.wait_for_service("/gray_transceiver/port"+str(newPortNumber)+"/transmit")
