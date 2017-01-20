@@ -78,7 +78,6 @@ class gray_transceiver(object):
         self.debugTopic  = rospy.Publisher("Gx_DEBUG", String, queue_size = 10, latch = True)
 
         self.metaSockQ = Queue(20)
-        self.socks = {}
         self.threadsLaunched = {}
         self.timers = {}
         self.offersAvailable = {}
@@ -93,16 +92,16 @@ class gray_transceiver(object):
 
         self.messageFactory = GxMessageFactory(name = MY_NAME)
 
-        self.socks["meta"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-        self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
-        self.socks["meta"].setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socks["meta"].bind(('', META_PORT)) #TODO: testing changed MCAST_GRP to ''
+        self.metaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+        self.metaSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
+        self.metaSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.metaSocket.bind(('', META_PORT)) #TODO: testing changed MCAST_GRP to ''
         self.host = MY_IP_ADDR#socket.gethostbyname(socket.gethostname())
-        self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
-        self.socks["meta"].setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
-        self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+        self.metaSocket.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
+        self.metaSocket.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
+        self.metaSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
 
-        self.threadsLaunched["meta"] = threading.Thread(target=recvQueSocket, args=(self.socks["meta"], self.metaSockQ))
+        self.threadsLaunched["meta"] = threading.Thread(target=recvQueSocket, args=(self.metaSocket, self.metaSockQ))
         self.threadsLaunched["meta"].daemon = True
         self.threadsLaunched["meta"].start()
 
@@ -164,13 +163,13 @@ class gray_transceiver(object):
         This function gets called everytime someone wants to use the request service
         '''
         newRequest = data.topicMetaInfo
-        
+
         #Send a request for the broadcast topic, and set up a timer to continue occasionally asking for it
         newMsg = self.messageFactory.newRequestMsg()
         newMsg.setDescription(newRequest.description)
         newMsg.setRosMsgType(newRequest.type)
 
-        def myTimer(timeSec = 100, msg = newMsg, sock = self.socks["meta"]):
+        def myTimer(timeSec = 100, msg = newMsg, sock = self.metaSocket):
             import time
             while not rospy.is_shutdown():
                 sock.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
@@ -215,14 +214,14 @@ class gray_transceiver(object):
                         newMsg = self.messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-                        self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
+                        self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                     #otherwise, tell them if you have it
                     elif str(message.getTopicMetaInformation()) in self.offersAvailable:
                         newMsg = self.messageFactory.newIHaveMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-                        self.socks["meta"].sendto(newMsg.toJSON() ,(MCAST_GRP, META_PORT))
+                        self.metaSocket.sendto(newMsg.toJSON() ,(MCAST_GRP, META_PORT))
 
                 #Someone is asking a broadcast topic to be sent
                 elif message.isSend():
@@ -243,7 +242,7 @@ class gray_transceiver(object):
                         newMsg = self.messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
-                        self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
+                        self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                 #Someone is saying that they are transmitting a broadcast topic
                 elif message.isTxing():
@@ -264,7 +263,7 @@ class gray_transceiver(object):
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
 
-                        self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
+                        self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                     #otherwise, if the broadcast topic is one you are transmitting, say that it is being transmitted
                     elif str(message.getTopicMetaInformation()) in self.txing:
@@ -272,13 +271,13 @@ class gray_transceiver(object):
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
 
-                        self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
+                        self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                 #Someone asked what broadcast topics are available
                 elif message.isOffersReq():
                     newMsg = self.messageFactory.newOffersAckMsg()
                     newMsg.setTopics(self.offersAvailable.keys())
-                    self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
+                    self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                 #A response to a request of what topics are available
                 elif message.isOffersAck():
