@@ -53,9 +53,8 @@ def hashString(string):
         h = (h << 11) ^ (h >>3) ^ ord(each)
     return h
 
-
+#TODO: consider returning a negative on errors, so the Gx will keep running and not crash. 
 def portHash(description=None, rosMsgType=None):
-    #return 1026
     hash1 = hashString(description)
     hash2 = hashString(rosMsgType)
     hash3 = hash1 ^ hash2
@@ -165,7 +164,7 @@ class gray_transceiver(object):
         newRequest = data.topicMetaInfo
 
         #Send a request for the broadcast topic, and set up a timer to continue occasionally asking for it
-        newMsg = self.messageFactory.newRequestMsg()
+        newMsg = self.messageFactory.newSendMsg()
         newMsg.setDescription(newRequest.description)
         newMsg.setRosMsgType(newRequest.type)
 
@@ -231,9 +230,10 @@ class gray_transceiver(object):
 
                     #It is already being transmitted, do nothing
                     if str(message.getTopicMetaInformation()) in self.txing:
-                        temp.data = "thinks it is already sending"
-                        self.debugTopic.publish(temp)
-                        pass
+                        newMsg = self.messageFactory.newTxingMsg()
+                        newMsg.setDescription(message.getDescription())
+                        newMsg.setRosMsgType(message.getRosMsgType())
+                        self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
                     
                     #otherwise, if you have the topic, start sending it
                     elif str(message.getTopicMetaInformation()) in self.offersAvailable:
