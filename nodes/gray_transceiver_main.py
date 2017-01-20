@@ -77,7 +77,6 @@ class gray_transceiver(object):
         
         self.debugTopic  = rospy.Publisher("Gx_DEBUG", String, queue_size = 10, latch = True)
 
-        self.requestQ = Queue(10)
         self.metaSockQ = Queue(20)
         self.socks = {}
         self.threadsLaunched = {}
@@ -90,6 +89,9 @@ class gray_transceiver(object):
         self.txing = []     #broacast topics (as strings) that you are transmitting
 
         self.startedPorts = [] #list of the ports that there is something listening on
+
+
+        self.messageFactory = GxMessageFactory(name = MY_NAME)
 
         self.socks["meta"] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.socks["meta"].setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
@@ -161,7 +163,25 @@ class gray_transceiver(object):
         '''
         This function gets called everytime someone wants to use the request service
         '''
-        self.requestQ.put(data.topicMetaInfo)
+        newRequest = data.topicMetaInfo
+        
+        #Send a request for the broadcast topic, and set up a timer to continue occasionally asking for it
+        newMsg = self.messageFactory.newRequestMsg()
+        newMsg.setDescription(newRequest.description)
+        newMsg.setRosMsgType(newRequest.type)
+
+        def myTimer(timeSec = 100, msg = newMsg, sock = self.socks["meta"]):
+            import time
+            while not rospy.is_shutdown():
+                sock.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
+                time.sleep(timeSec)
+
+        self.timers["request_"+newRequest.description] = threading.Thread(target=myTimer, args=())
+        self.timers["request_"+newRequest.description].daemon = True
+        self.timers["request_"+newRequest.description].start()
+
+        self.desired.append(str(newRequest))
+
         return GxRequestResponse(True)
 
     def offers_callback(self, data):
@@ -180,11 +200,9 @@ class gray_transceiver(object):
 
         rate = rospy.Rate(10) #10hz probably will need to change
         
-        messageFactory = GxMessageFactory(name = MY_NAME)
-        
         while not rospy.is_shutdown():
             if not self.metaSockQ.empty():
-                message = messageFactory.fromJSON(self.metaSockQ.get())
+                message = self.messageFactory.fromJSON(self.metaSockQ.get())
 
                 #Someone is requesting a broadcast topic
                 if message.isRequest():
@@ -194,14 +212,14 @@ class gray_transceiver(object):
 
                     #if your are transmitting it, tell them you are
                     if str(message.getTopicMetaInformation()) in self.txing:
-                        newMsg = messageFactory.newTxingMsg()
+                        newMsg = self.messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
                     #otherwise, tell them if you have it
                     elif str(message.getTopicMetaInformation()) in self.offersAvailable:
-                        newMsg = messageFactory.newIHaveMsg()
+                        newMsg = self.messageFactory.newIHaveMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.socks["meta"].sendto(newMsg.toJSON() ,(MCAST_GRP, META_PORT))
@@ -222,7 +240,7 @@ class gray_transceiver(object):
                     elif str(message.getTopicMetaInformation()) in self.offersAvailable:
                         self.startTransmitting(message.getTopicMetaInformation())
 
-                        newMsg = messageFactory.newTxingMsg()
+                        newMsg = self.messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
@@ -242,7 +260,7 @@ class gray_transceiver(object):
 
                     #if it is something you want, tell them to send it
                     if str(message.getTopicMetaInformation()) in self.desired:
-                        newMsg = messageFactory.newSendMsg()
+                        newMsg = self.messageFactory.newSendMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
 
@@ -250,7 +268,7 @@ class gray_transceiver(object):
 
                     #otherwise, if the broadcast topic is one you are transmitting, say that it is being transmitted
                     elif str(message.getTopicMetaInformation()) in self.txing:
-                        newMsg = messageFactory.newTxingMsg()
+                        newMsg = self.messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
 
@@ -258,7 +276,7 @@ class gray_transceiver(object):
 
                 #Someone asked what broadcast topics are available
                 elif message.isOffersReq():
-                    newMsg = messageFactory.newOffersAckMsg()
+                    newMsg = self.messageFactory.newOffersAckMsg()
                     newMsg.setTopics(self.offersAvailable.keys())
                     self.socks["meta"].sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
 
@@ -270,35 +288,7 @@ class gray_transceiver(object):
                         topicOfferMsg.type = data
                         self.availableTopic.publish(topicOfferMsg)
 
-            #check the request queue to see if there are any requests for new broadcast topics
-            #TODO: move all of this into the service
-            if not self.requestQ.empty():
-                temp = String()
-                temp.data = "got request"
-                self.debugTopic.publish(temp)
-                
-                newRequest = self.requestQ.get()
-
-                #Send a request for the broadcast topic, and set up a timer to continue occasionally asking for it
-                newMsg = messageFactory.newRequestMsg()
-                newMsg.setDescription(newRequest.description)
-                newMsg.setRosMsgType(newRequest.type)
-
-                def myTimer(timeSec = 100, msg = newMsg, sock = self.socks["meta"]):
-                    import time
-                    while not rospy.is_shutdown():
-                        sock.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
-                        time.sleep(timeSec)
-
-                self.timers["request_"+newRequest.description] = threading.Thread(target=myTimer, args=())
-                self.timers["request_"+newRequest.description].daemon = True
-                self.timers["request_"+newRequest.description].start()
-
-                #myType = getattr(__import__(str(msgTypes[0])+".msg", fromlist=[msgTypes[1]], level=1), msgTypes[1]) #put in try, can throw error if it doesn't have the attribute, or use hasattr(object, name)
-
-                self.desired.append(str(newRequest)) #need to make sure that the comparision will work right
-
-            if self.metaSockQ.empty() and self.requestQ.empty():
+            if self.metaSockQ.empty():
                 rate.sleep()                        # nothing to process yet, sleep longer
             else:
                 rospy.sleep(0.01)                   # sleep briefly so ROS doesn't die
