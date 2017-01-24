@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import json
-
+import StringIO, struct #for the hopefully smaller serialization
+import roslib
 from gray_transceiver.msg import GxTopicMetaInformation
 from rospy_message_converter import message_converter, json_message_converter
-
 
 class GxBaseMsg(object):
     def __init__(self, sender = None, msgType = None):
@@ -129,10 +129,64 @@ class GxDataMsg(GxTopicMetaInfoMsg):
         self.setDataFromDict(srcDict["data"])
 
     def fromSocket(self, source):
-        self.fromJSON(source) #so that in the future, other packaging methods can more easily be tested
+        #self.fromJSON(source)
+        self.fromBitString(source)
 
     def toSocket(self):
-        return self.toJSON() #so that in the future, other packaging methods can more easily be tested
+        #return self.toJSON()
+        return self.toBitString()
+
+    def fromBitString(self, data):
+        (positionSender, positionType, positionDescription, positionRosMsgType, positionData) = struct.unpack('<IIIII',data[:20])
+        serializedSender = struct.unpack('<%ss'%(positionType-positionSender),data[positionSender:positionType])[0]
+        serializedType = struct.unpack('<%ss'%(positionDescription-positionType),data[positionType:positionDescription])[0]
+        serializedDescription = struct.unpack('<%ss'%(positionRosMsgType-positionDescription), data[positionDescription:positionRosMsgType])[0]
+        serializedRosMsgType = struct.unpack('<%ss'%(positionData - positionRosMsgType), data[positionRosMsgType:positionData])[0]
+        serializedData = data[positionData:]
+
+        self.setSender(serializedSender)
+        self.setDescription(serializedDescription)
+        self.setRosMsgType(serializedRosMsgType)
+        dataType = roslib.message.get_message_class(self.getRosMsgType())
+        self.data = dataType()
+        self.data.deserialize(serializedData)
+
+    def toBitString(self):
+        serializedSender = self.getSender().encode('utf-8')
+        serializedType = self.getType().encode('utf-8')
+        serializedDescription = self.getDescription().encode('utf-8')
+        serializedRosMsgType = self.getRosMsgType().encode('utf-8')
+
+        serializedData = StringIO.StringIO()
+        self.data.serialize(serializedData)
+
+        lengthSender = len(serializedSender)
+        lengthType = len(serializedType)
+        lengthDescription = len(serializedDescription)
+        lengthRosMsgType = len(serializedRosMsgType)
+        lengthData = len(serializedData.getvalue())
+
+        positionSender = 20 #(size of each position) * number of positions = 4 * 5
+        positionType = positionSender + lengthSender
+        positionDescription = positionType + lengthType
+        positionRosMsgType = positionDescription + lengthDescription
+        positionData = positionRosMsgType + lengthRosMsgType
+
+        runningBitString = StringIO.StringIO()
+
+        #runningBitString.write(struct.pack('<I%ss'%lengthSender, lengthSender, serializedSender))
+        runningBitString.write(struct.pack('<I',positionSender))
+        runningBitString.write(struct.pack('<I',positionType))
+        runningBitString.write(struct.pack('<I',positionDescription))
+        runningBitString.write(struct.pack('<I',positionRosMsgType))
+        runningBitString.write(struct.pack('<I',positionData))
+        runningBitString.write(struct.pack('<%ss'%lengthSender, serializedSender))
+        runningBitString.write(struct.pack('<%ss'%lengthType, serializedType))
+        runningBitString.write(struct.pack('<%ss'%lengthDescription, serializedDescription))
+        runningBitString.write(struct.pack('<%ss'%lengthRosMsgType, serializedRosMsgType))
+        runningBitString.write(struct.pack('<%ss'%lengthData, serializedData.getvalue()))
+
+        return runningBitString.getvalue()
 
     def setDataFromDict(self, data):
         try:
