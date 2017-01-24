@@ -21,13 +21,13 @@ from uuid import getnode as get_mac
 MY_MAC_ADDR = get_mac()
 
 
-MCAST_GRP = '224.1.1.1' #change this to use a parameter   #TODO: testing changed '224.1.1.1' to ''
+MCAST_GRP = '224.1.1.1' #change this to use a parameter
 META_PORT = 1025        #possibly change this to a parameter
 MY_NAME = str(MY_MAC_ADDR)
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
-
-MY_IP_ADDR = subprocess.check_output(["ifconfig", "lo"]).split("inet addr:")[1].split(" ")[0] #TODO: testing changed wlan0 to lo
+INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use","lo") #TODO: testing changed wlan0 to lo
+MY_IP_ADDR = subprocess.check_output(["ifconfig", INTERFACE_TO_USE]).split("inet addr:")[1].split(" ")[0]
 
 rospy.set_param("/gray_transceiver/multicast_group", MCAST_GRP)
 rospy.set_param("/gray_transceiver/ip_to_use", MY_IP_ADDR)
@@ -94,7 +94,7 @@ class gray_transceiver(object):
         self.metaSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         self.metaSocket.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 3)
         self.metaSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.metaSocket.bind(('', META_PORT)) #TODO: testing changed MCAST_GRP to ''
+        self.metaSocket.bind((MCAST_GRP, META_PORT))
         self.host = MY_IP_ADDR#socket.gethostbyname(socket.gethostname())
         self.metaSocket.setsockopt(socket.SOL_IP, socket.IP_MULTICAST_IF, socket.inet_aton(self.host))#socket.INADDR_ANY)
         self.metaSocket.setsockopt(socket.SOL_IP, socket.IP_ADD_MEMBERSHIP, socket.inet_aton(MCAST_GRP) + socket.inet_aton(self.host))
