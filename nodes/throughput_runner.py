@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
+import json
 import StringIO, struct
 from std_msgs.msg import String
 from gray_transceiver.msg import GxTopicMetaInformation, throughputTest
@@ -8,10 +9,18 @@ from gray_transceiver.srv import GxRequest, GxOffer
 
 
 class runSettings(object):
+    def __init__(self):
+        self.data = {}
+
+    def load(self, newData):
+        self.data = json.loads(newData)
     
+    def dump(self)
+        return json.dumps(self.data)
 
 class run(object):
-    def __init__(self, runSettings):
+    def __init__(self):
+        self.settings = {}
 
 
 class client(object):
