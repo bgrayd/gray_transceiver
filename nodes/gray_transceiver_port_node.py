@@ -16,6 +16,8 @@ from gray_transceiver_message import *
 
 METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 
+json = rospy.get_param("throughput_test/json_bool")
+
 
 class gray_transceiver_port(object):
     
@@ -79,7 +81,11 @@ class gray_transceiver_port(object):
         #set up the callback for the local topic that will be transmitted                        
         def dynamicCallback(data, port=self.port, sock = self.transmitSocket, baseMsg = newMsg):#default arguments are evaluated when the function is created, not called 
             baseMsg.setDataFromRosMsg(data)
-            sock.sendto(baseMsg.toSocket(), (self.mcast_group, int(port)))
+            if json:
+                socketData = baseMsg.toJSON()
+            else:
+                socketData = baseMsg.toBitString()
+            sock.sendto(socketData, (self.mcast_group, int(port)))
 
         myType = roslib.message.get_message_class(data.topicMetaInfo.type)
         rospy.Subscriber(data.topicName, myType, dynamicCallback)
@@ -97,7 +103,11 @@ class gray_transceiver_port(object):
                 senderDomain = ""
                 try:
                     data2, addr = self.receiveSocket.recvfrom(65535)
-                    newData.fromSocket(data2)
+                    if json:
+                        newData.fromJSON()
+                    else:
+                        newData.fromBitString()
+                    #newData.fromSocket(data2)
                     senderDomain = str(newData.getSender()) + str(newData.getTopicMetaInformation())
                 except socket.error, e:
                     print 'Exception'

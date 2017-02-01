@@ -53,6 +53,7 @@ find_package(catkin REQUIRED COMPONENTS
     GxMetaTopic.msg
     GxTopicMetaInformation.msg
 	  twistCommand.msg
+    throughputTest.msg
   )
 
 ## Generate services in the 'srv' folder
