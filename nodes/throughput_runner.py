@@ -118,6 +118,12 @@ class run(object):
     def __init__(self):
         self.settings = runSettings()
 
+        self.launch = roslaunch.scriptapi.ROSLaunch()
+        self.launch.start()
+
+        self.gxNode = None
+        self.requestor = None
+
     def loadSettings(self, setting):
         self.settings.load(setting)
 
@@ -127,6 +133,39 @@ class run(object):
         rospy.set_param("throughput_test/broadcastTopics_number", self.settings.getBroadCastTopicNumber())
         rospy.set_param("throughput_test/json_bool", self.settings.getJsonBool())
         rospy.set_param("throughput_test/runTime_seconds", self.settings.getRunTime())
+
+    def launchGx(self):
+        package = "gray_transceiver"
+        executable = "gray_transceiver_main.py"
+        nodeNamespace = "/gray_transceiver/"
+        nodeName = "gray_transceiver_main""
+
+        arguments = ""
+
+        gxNode = roslaunch.core.Node(package, executable,name=nodeName, namespace=nodeNamespace, args=arguments)
+        self.gxNode = self.launch.launch(gxNode)
+
+    def launchRequestor(self):
+        package = "gray_transceiver"
+        executable = "throughput_requestor.py"
+        nodeNamespace = "/gray_transceiver/"
+        nodeName = "throughput_requestor"
+
+        arguments = ""
+
+        requestorNode = roslaunch.core.Node(package, executable,name=nodeName, namespace=nodeNamespace, args=arguments)
+        self.requestorNode = self.launch.launch(requestorNode)
+
+    def startBag(self):
+
+    #What methods of analysis should be used?
+
+    #end the subscribers, bag, and nodes
+    def end(self):
+        self.gxNode.stop()
+        self.requestorNode.stop()
+
+    def run(self):
 
 
 class client(object):
