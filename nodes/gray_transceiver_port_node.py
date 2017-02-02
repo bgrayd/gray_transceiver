@@ -16,7 +16,7 @@ from gray_transceiver_message import *
 
 METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 
-json = rospy.get_param("throughput_test/json_bool")
+json = rospy.get_param("/throughput_test/json_bool")
 
 
 class gray_transceiver_port(object):
@@ -104,9 +104,9 @@ class gray_transceiver_port(object):
                 try:
                     data2, addr = self.receiveSocket.recvfrom(65535)
                     if json:
-                        newData.fromJSON()
+                        newData.fromJSON(data2)
                     else:
-                        newData.fromBitString()
+                        newData.fromBitString(data2)
                     #newData.fromSocket(data2)
                     senderDomain = str(newData.getSender()) + str(newData.getTopicMetaInformation())
                 except socket.error, e:

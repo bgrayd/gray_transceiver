@@ -13,10 +13,10 @@ class requester(object):
         Constructor for requester class.
         '''
         rospy.init_node("requester")
-        self.frequency = rospy.get_param("throughput_test/frequency_hz")
-        self.messageSize = rospy.get_param("throughput_test/messageSize_bytes")
-        self.numberOfBroadcastTopics = rospy.get_param("throughput_test/broadcastTopics_number")
-        self.runTime = rospy.get_param("throughput_test/runTime_seconds", 300)
+        self.frequency = rospy.get_param("/throughput_test/frequency_hz")
+        self.messageSize = rospy.get_param("/throughput_test/messageSize_bytes")
+        self.numberOfBroadcastTopics = rospy.get_param("/throughput_test/broadcastTopics_number")
+        self.runTime = rospy.get_param("/throughput_test/runTime_seconds", 300)
 
         self.data_pub = rospy.Publisher("/throughput_test_data", throughputTest, queue_size = 10)
         
@@ -25,20 +25,17 @@ class requester(object):
         Do the initial requests and then do nothing
         '''
 
-        rospy.wait_for_service('gray_transceiver/offers')
+        rospy.wait_for_service('/gray_transceiver/gray_transceiver/offers')
         try:
-            offer = rospy.ServiceProxy('gray_transceiver/offers', GxOffer)
+            offer = rospy.ServiceProxy('/gray_transceiver/gray_transceiver/offers', GxOffer)
             testOffer = GxTopicMetaInformation()
-            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
+            request = rospy.ServiceProxy('/gray_transceiver/gray_transceiver/requests', GxRequest)
             testRequest = GxTopicMetaInformation()
             for each in range(0, self.numberOfBroadcastTopics):
                 testOffer.description = "throughput"+str(each)
                 testOffer.type = "gray_transceiver/throughputTest"
                 resp3 = offer(testOffer, "/throughput_test_data")
-
-                testRequest.description = "throughput"+str(each)
-                testRequest.type = "gray_transceiver/throughputTest"
-                resp2 = request(testRequest)
+                resp2 = request(testOffer)
 
         except rospy.ServiceException, e:
             print "test request service call failed: %s"%e
