@@ -3,6 +3,7 @@
 import json
 import rospy
 import signal
+import socket
 import roslaunch
 import subprocess
 import StringIO, struct
@@ -231,8 +232,7 @@ class run(object):
         self.requestorNode.stop()
         self.stopSubscribers()
 
-        #self.bagger.terminate()
-        terminate_process_and_children(self.bagger)
+        #terminate_process_and_children(self.bagger)
 
     def addToFile(self):
         line = self.settings.getAsCsv()
@@ -251,7 +251,7 @@ class run(object):
 
         self.setupParameters()
         self.launchGx()
-        self.startBag()
+        #self.startBag()
         self.launchRequestor()
 
         rospy.sleep(self.waitStart)
@@ -292,6 +292,8 @@ class client(object):
         '''
         rospy.init_node("client")
 
+        self.connect()
+
     def startFile(self):
         #see if it exists, if it doesn't, make one
         try:
@@ -302,11 +304,52 @@ class client(object):
             settings = runSettings()
             file2.write(settings.getCsvHeader()+"\n")
             file2.close()
+
+    def connect(self):
+        ip = raw_input("What IP to connect to? ")
+        port = int(raw_input("What port to connect to? "))
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((ip, port))
+
+    def sendResponse(self, runner):
+        dictToSend = {}
+        dictToSend["min"] = runner.getMinThroughput()
+        dictToSend["max"] = runner.getMaxThroughput()
+        dictToSend["avg"] = runner.getAvgThroughput()
+        self.sock.send(json.dumps(dictToSend))
+
+    def start(self):
+        data = self.sock.recv(1000)
+        settings = runSettings()
+        settings.load(data)
+        return settings
         
     def run(self):
         '''
         Do the initial requests and then do nothing
         '''
+        self.startFile()
+        while not rospy.is_shutdown():
+            settings = self.start()
+            if settings.getRunTime() < 0:
+                break
+
+            runner = run()
+            runner.settings = settings
+
+            runner.run()
+            runner.addToFile()
+
+            #runner.messageCounts = [settings.getFrequency(), settings.getBroadcastTopicNumber()]
+
+            print("min:"+str(runner.getMinThroughput()))
+            print("max:"+str(runner.getMaxThroughput()))
+            print("avg:"+str(runner.getAvgThroughput()))
+
+            self.sendResponse(runner)
+
+
+
 
 
 if __name__ == "__main__":

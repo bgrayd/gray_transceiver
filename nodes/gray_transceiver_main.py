@@ -26,7 +26,7 @@ META_PORT = 1025        #possibly change this to a parameter
 MY_NAME = str(MY_MAC_ADDR)
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 TOPICSIHAVE = rospy.get_param("gray_transceiver/topics_i_have",{"LIDAR":"/scan", "ODOM":"/odom"})
-INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use","lo") #TODO: testing changed wlan0 to lo
+INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use","wlan0") #TODO: testing changed wlan0 to lo
 MY_IP_ADDR = subprocess.check_output(["ifconfig", INTERFACE_TO_USE]).split("inet addr:")[1].split(" ")[0]
 
 rospy.set_param("/gray_transceiver/multicast_group", MCAST_GRP)
