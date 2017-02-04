@@ -194,8 +194,8 @@ class gray_transceiver(object):
         '''
         self.offersAvailable[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "topicName":data.topicName}
         newReqMsg = self.messageFactory.newSendMsg()
-        newReqMsg.setDescription(data.topicMetaInfo)
-        newReqMsg.setRosMsgType(data.topicMetaInfo)
+        newReqMsg.setDescription(data.topicMetaInfo.description)
+        newReqMsg.setRosMsgType(data.topicMetaInfo.type)
 
         self.metaSockQ.put(newReqMsg.toJSON())
 
