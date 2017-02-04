@@ -333,6 +333,16 @@ class client(object):
         settings = runSettings()
         settings.load(data)
         return settings
+
+    def tryStart(self):
+        settings = None
+        while settings == None:
+            try:
+                settings = self.start()
+            except Socket.timeout as ex:
+                print "Time out"
+                settings = None
+        return settings
         
     def run(self):
         '''

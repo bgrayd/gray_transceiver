@@ -12,7 +12,7 @@ COMPUTER_VALUES = [5,4,3,2]#[2,3,4,5]
 FREQUENCY_VALUES = [10, 15, 20, 25, 30, 50]#[10, 50, 100]#[10,20,30,100,200]
 BROADCAST_TOPIC_VALUES = [1,2,3,4,5]
 MESSAGE_SIZE_VALUES = [1, 10, 2000, 5000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
-RUNTIME = 120 #max json is between 21788
+RUNTIME = 60 #max json is between 21788
 
 basePort = 9000
 MY_IP_ADDR = subprocess.check_output(["ifconfig", 'wlan0']).split("inet addr:")[1].split(" ")[0]
