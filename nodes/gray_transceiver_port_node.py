@@ -95,7 +95,7 @@ class gray_transceiver_port(object):
     def run(self):
         publishers = {}
         startRate = rospy.Rate(10)
-        runningRate = rospy.Rate(100)
+        runningRate = rospy.Rate(150)
 
         while not rospy.is_shutdown():
             if self.receiveStarted:

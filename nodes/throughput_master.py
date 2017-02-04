@@ -7,14 +7,14 @@ import subprocess
 import throughput_runner
 
 
-JSON_VALUES = [False]#[True, False]
-COMPUTER_VALUES = [2]#[2,3,4,5]
-FREQUENCY_VALUES = [10]#[10, 50, 100]#[10,20,30,100,200]
-BROADCAST_TOPIC_VALUES = [1,2]#[1,2,3,4,5]
-MESSAGE_SIZE_VALUES = [1,2,3]#[1, 10, 2000, 5000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
-RUNTIME = 60 #max json is between 21788
+JSON_VALUES = [True, False]#[True, False]
+COMPUTER_VALUES = [5,4,3,2]#[2,3,4,5]
+FREQUENCY_VALUES = [10, 15, 20, 25, 30, 50]#[10, 50, 100]#[10,20,30,100,200]
+BROADCAST_TOPIC_VALUES = [1,2,3,4,5]
+MESSAGE_SIZE_VALUES = [1, 10, 2000, 5000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
+RUNTIME = 120 #max json is between 21788
 
-basePort = 7000
+basePort = 9000
 MY_IP_ADDR = subprocess.check_output(["ifconfig", 'wlan0']).split("inet addr:")[1].split(" ")[0]
 
 class master(object):
@@ -77,9 +77,7 @@ class master(object):
         #runner.messageCounts = [settings.getFrequency(), settings.getBroadcastTopicNumber()]
 
         mins, maxs, avgs = self.recvFromOthers(settings)
-        print(mins)
-        print(maxs)
-        print(avgs)
+        
 
         mins.append(runner.getMinThroughput())
         maxs.append(runner.getMaxThroughput())
@@ -88,6 +86,10 @@ class master(object):
         minOfMins = min(mins)
         maxOfMaxs = max(maxs)
         avgOfAvgs = (sum(avgs) * 1.0) / len(avgs)
+
+        print(mins)
+        print(maxs)
+        print(avgs)
 
         print("min:"+str(minOfMins))
         print("max:"+str(maxOfMaxs))
