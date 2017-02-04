@@ -162,8 +162,7 @@ class run(object):
         self.launch = roslaunch.scriptapi.ROSLaunch()
         self.launch.start()
 
-        self.waitStart = self.settings.getRunTime()/10.0
-        self.calcFreq = 10
+        self.calcFreq = 1
 
         self.gxNode = None
         self.requestor = None
@@ -247,20 +246,25 @@ class run(object):
         file1.close()
 
     def run(self):
-        self.waitStart = self.settings.getRunTime()/10.0 #recalculate once the settings are set
 
         self.setupParameters()
         self.launchGx()
         #self.startBag()
         self.launchRequestor()
 
-        rospy.sleep(self.waitStart)
-
-        countsToRun = self.settings.getRunTime() * 0.8 * self.calcFreq
+        countsToWait = self.settings.getRunTime() * 0.25 * self.calcFreq
+        countsToRun = self.settings.getRunTime() * 0.5 * self.calcFreq
         count = 0
 
         rate = rospy.Rate(self.calcFreq)
-        self.messageCount = 0 #clear all that happened while waiting
+        rate.sleep()
+
+        while count < countsToWait:
+            rate.sleep()
+            self.messageCount = 0
+            count += 1
+
+        count = 0
 
         while count < countsToRun:
             rate.sleep()
@@ -270,7 +274,13 @@ class run(object):
 
             count += 1
 
-        rospy.sleep(self.waitStart)
+        count = 0
+
+        while count < countsToWait:
+            rate.sleep()
+            self.messageCount = 0
+            count += 1
+
 
         self.end()
 

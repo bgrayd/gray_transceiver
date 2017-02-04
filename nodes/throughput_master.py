@@ -6,14 +6,15 @@ import socket
 import subprocess
 import throughput_runner
 
-JSON_VALUES = [True]#[True, False]
-COMPUTER_VALUES = [2]#[2,3,4,5]
-FREQUENCY_VALUES = [1,10]#[10, 50, 100]#[10,20,30,100,200]
-BROADCAST_TOPIC_VALUES = [1]#[1,2,3,4,5]
-MESSAGE_SIZE_VALUES = [1]#[10, 20, 30, 40, 100, 1000, 30000]
-RUNTIME = 20 #max json is between 21788
 
-basePort = 5000
+JSON_VALUES = [False]#[True, False]
+COMPUTER_VALUES = [2]#[2,3,4,5]
+FREQUENCY_VALUES = [10]#[10, 50, 100]#[10,20,30,100,200]
+BROADCAST_TOPIC_VALUES = [1,2]#[1,2,3,4,5]
+MESSAGE_SIZE_VALUES = [1,2,3]#[1, 10, 2000, 5000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
+RUNTIME = 60 #max json is between 21788
+
+basePort = 7000
 MY_IP_ADDR = subprocess.check_output(["ifconfig", 'wlan0']).split("inet addr:")[1].split(" ")[0]
 
 class master(object):
@@ -73,7 +74,7 @@ class master(object):
         runner.run()
         runner.addToFile()
 
-        runner.messageCounts = [settings.getFrequency(), settings.getBroadcastTopicNumber()]
+        #runner.messageCounts = [settings.getFrequency(), settings.getBroadcastTopicNumber()]
 
         mins, maxs, avgs = self.recvFromOthers(settings)
         print(mins)

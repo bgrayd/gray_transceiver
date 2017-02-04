@@ -180,6 +180,12 @@ class gray_transceiver(object):
 
         self.desired.append(str(newRequest))
 
+        newReqMsg = self.messageFactory.newTxingMsg()
+        newReqMsg.setDescription(newRequest.description)
+        newReqMsg.setRosMsgType(newRequest.type)
+
+        self.metaSockQ.put(newReqMsg.toJSON())
+
         return GxRequestResponse(True)
 
     def offers_callback(self, data):
