@@ -193,6 +193,12 @@ class gray_transceiver(object):
         This function gets called everytime a message is published over the /gray_transceiver/offers topic.
         '''
         self.offersAvailable[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "topicName":data.topicName}
+        newReqMsg = self.messageFactory.newSendMsg()
+        newReqMsg.setDescription(data.topicMetaInfo)
+        newReqMsg.setRosMsgType(data.topicMetaInfo)
+
+        self.metaSockQ.put(newReqMsg.toJSON())
+
         return GxOfferResponse(True)
         
     def run(self):
