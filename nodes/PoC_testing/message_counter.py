@@ -39,6 +39,8 @@ class run(object):
 
         self.subscribers = []
         self.subscribers.append(rospy.Subscriber("gray_transceiver/metatopic", GxMetaTopic, self.metaTopic_callback))
+        rospy.set_param("throughput_test/json_bool", False)
+
 
 
     def metaTopic_callback(self, data):
