@@ -6,6 +6,7 @@ import signal
 import socket
 import roslaunch
 import subprocess
+import roslib.message
 import StringIO, struct
 from std_msgs.msg import String
 from gray_transceiver.msg import GxTopicMetaInformation, throughputTest, GxMetaTopic
