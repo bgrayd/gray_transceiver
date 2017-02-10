@@ -55,8 +55,6 @@ class run(object):
         self.columnNames.append(data.name)
 
     def startBag(self):
-        #command = ['rosbag', 'record', '-e', '"/foreign_(.*)/throughput(.*)"', '-o', '~/Gx_bags/'+str(self.settings.getBagName())]
-        #command = 'rosbag record -e "/foreign_(.*)/throughput(.*)" -o ~/Gx_bags/'+str(self.settings.getBagName())
         command = 'rosbag record -e "/foreign_(.*)/"'
         self.bagger = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,shell=True, cwd="/home")
 
@@ -90,7 +88,6 @@ class run(object):
     def run(self):
 
         countsToWait = 25
-        countsToRun = self.settings.getRunTime() * 0.5 * self.calcFreq
         count = 0
 
         rate = rospy.Rate(self.calcFreq)
@@ -98,16 +95,18 @@ class run(object):
 
         while count < countsToWait:
             rate.sleep()
-            self.messageCount = 0
+            for each in range(0,self.currentIndex):
+                self.messageCounts[each] = 0
             count += 1
 
         while not rospy.is_shutdown():
             rate.sleep()
-            
-            self.messageCounts.append(self.messageCount)
-            self.messageCount = 0
+            newCounts = []
+            for each in range(0,self.currentIndex):
+                newCounts.append(self.messageCounts[each])
+                self.messageCounts[each] = 0
+            self.messageCountsOld.append(newCounts)
 
-            count += 1
 
         self.end()
 
