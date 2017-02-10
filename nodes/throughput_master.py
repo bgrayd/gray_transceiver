@@ -7,14 +7,18 @@ import subprocess
 import throughput_runner
 
 
-JSON_VALUES = [True, False]#[True, False]
-COMPUTER_VALUES = [5,4,3,2]#[2,3,4,5]
+JSON_VALUES = [False]#[True, False]
+COMPUTER_VALUES = [4,3,2]#[2,3,4,5]
 FREQUENCY_VALUES = [10, 20, 30, 50]#[10, 50, 100]#[10,20,30,100,200]
 BROADCAST_TOPIC_VALUES = [1,2,4,5]
 MESSAGE_SIZE_VALUES = [500, 1000, 3000, 4000, 5000, 6000, 8000]#[1, 100, 2000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
 RUNTIME = 60 #max json is between 21788
 
-basePort = 2400
+#still need to run:
+#[True]  [4,3,2]  [10, 20, 30, 50] [1,2,4,5] [500, 1000, 3000, 4000, 5000, 6000, 8000]
+#[False]  [4,3,2]  [10, 20, 30, 50] [1,2,4,5] [500, 1000, 3000, 4000, 5000, 6000, 8000]
+
+basePort = 2520
 MY_IP_ADDR = subprocess.check_output(["ifconfig", 'wlan0']).split("inet addr:")[1].split(" ")[0]
 
 class master(object):

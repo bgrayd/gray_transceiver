@@ -19,5 +19,7 @@
 
     <node pkg="gray_transceiver" type="gmapping_launcher.py" name="gmapping_launcher" />
 
+    <node pkg="gray_transceiver" type="message_counter.py" name="message_counter" />
+
 
 </launch>
