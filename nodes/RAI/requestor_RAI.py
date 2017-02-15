@@ -2,8 +2,8 @@
 
 import rospy
 from std_msgs.msg import String
-from gray_transceiver.msg import GxRequest
-
+from gray_transceiver.msg import GxTopicMetaInformation
+from gray_transceiver.srv import GxRequest, GxOffer
 class requester(object):
 
     def __init__(self):
@@ -11,27 +11,31 @@ class requester(object):
         Constructor for requester class.
         '''
         rospy.init_node("requester")
-        self.request_pub = rospy.Publisher("gray_transceiver/requests", GxRequest, queue_size=10)
-
         
     def run(self):
         '''
         Do the initial requests and then do nothing
         '''
-        rospy.sleep(15)
 
-        while not rospy.is_shutdown():
-            message = GxRequest()
-            message.description = "forward"
-            message.type = "gray_transceiver/twistCommand"
-            self.request_pub.publish(message)
-            print("published CMD_VEL")
-            # message.description = "LIDAR"
-            # message.type = "sensor_msgs/LaserScan"
-            # self.request_pub.publish(message)
-            # print("Published LIDAR")
-            rospy.spin()#sleep(0.5)
+        rospy.wait_for_service('gray_transceiver/offers')
+        try:
+            offer = rospy.ServiceProxy('gray_transceiver/offers', GxOffer)
+            odomOffer = GxTopicMetaInformation()
+            odomOffer.description = "kinectCamera"
+            odomOffer.type = "sensor_msgs/Image"
+            resp3 = offer(odomOffer, "/camera/rgb/image_rect_color")
+        except rospy.ServiceException, e:
+            print "Odom offer service call failed: %s"%e
 
+        # rospy.wait_for_service('gray_transceiver/requests')
+        # try:
+        #     request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
+        #     odomRequest = GxTopicMetaInformation()
+        #     odomRequest.description = "ODOM"
+        #     odomRequest.type = "nav_msgs/Odometry"
+        #     resp1 = request(odomRequest)
+        # except rospy.ServiceException, e:
+        #     print "Odom request service call failed: %s"%e
 
 if __name__ == "__main__":
     Requester = requester()

@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="gray_transceiver" type="requestor_laptop.py" name="requestor"/>
+    <node pkg="gray_transceiver" type="gray_transceiver_main.py" name="gray_transceiver" required="true"/>
+</launch>

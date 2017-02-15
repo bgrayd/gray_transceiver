@@ -26,7 +26,7 @@ class cmdVelRepub(object):
                 # rospy.Subscriber(data.name, twistCommand, self.twistCmd_sub)
 
     def twistCmd_sub(self, data):
-        if(data.name == self.thisRobotName):
+        if (data.name == self.thisRobotName) or (data.name == "all"):
             cmd_vel = Twist()
             cmd_vel.linear = data.linear
             cmd_vel.angular = data.angular
