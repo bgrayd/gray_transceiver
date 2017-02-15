@@ -7,7 +7,7 @@ from gray_transceiver.srv import GxRequest, GxOffer
 
 twist_all = twistCommand()
 twist_all.name="all"
-twist_all.angular.z = 0.05
+twist_all.angular.z = 0.1
 twist_all.seconds = 8
 
 twist_wait = twistCommand()
@@ -15,20 +15,20 @@ twist_wait.name = "all"
 twist_wait.seconds = 4
 
 twist_first = twistCommand()
-twist_first.angular.z = -0.05
+twist_first.angular.z = -0.12
 twist_first.seconds = 14
 
 twist_second = twistCommand()
-twist_second.angular.z = 0.05
+twist_second.angular.z = 0.13
 twist_second.seconds = 14
 
 twist_third_1 = twistCommand()
-twist_third_1.angular.z = 0.05
+twist_third_1.angular.z = 0.14
 twist_third_1.seconds = 7
 
 twist_third_2 = twistCommand()
-twist_third_2.angular.x = 0
-twist_third_2.angular.z = -0.05
+twist_third_2.angular.x = 1
+twist_third_2.angular.z = -0.15
 twist_third_2.seconds = 7
 
 
@@ -92,35 +92,45 @@ class requester(object):
         twist_third_1.name = self.robotNames[2]
         twist_third_2.name = self.robotNames[2]
 
-        twist_all.id = "1"
-        twist_wait.id = "1"
-        twist_first.id = "1"
-        twist_second.id = "1"
-        twist_third_1.id = "1"
-        twist_third_2.id = "1"
+        twist_all.id = "10"
+        twist_wait.id = "11"
+        twist_first.id = "12"
+        twist_second.id = "13"
+        twist_third_1.id = "14"
+        twist_third_2.id = "15"
 
         for each in range(0,10):
             self.twistCmd_pub.publish(twist_all)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_wait)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_first)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_second)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_third_1)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_third_2)
             rate.sleep()
 
-        twist_all.id = "2"
-        twist_wait.id = "2"
-        twist_first.id = "2"
-        twist_second.id = "2"
-        twist_third_1.id = "2"
-        twist_third_2.id = "2"
+        twist_all.id = "20"
+        twist_wait.id = "21"
+        twist_first.id = "22"
+        twist_second.id = "23"
+        twist_third_1.id = "24"
+        twist_third_2.id = "25"
 
         for each in range(0,10):
             self.twistCmd_pub.publish(twist_all)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_wait)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_first)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_second)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_third_1)
+            rate.sleep()
             self.twistCmd_pub.publish(twist_third_2)
             rate.sleep()
 
