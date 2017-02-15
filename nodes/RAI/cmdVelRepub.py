@@ -16,6 +16,8 @@ class cmdVelRepub(object):
 
         self.thisRobotName = ''
 
+        self.seenIds = []
+
         self.twistQueue = Queue(1000)
 
     def meta_sub(self, data):
@@ -28,7 +30,8 @@ class cmdVelRepub(object):
     def twistCmd_sub(self, data):
         print(self.thisRobotName)
         print(data.name)
-        if (str(data.name) == str(self.thisRobotName)) or (str(data.name) == "all"):
+        if ((str(data.name) == str(self.thisRobotName)) or (str(data.name) == "all")) and (str(data.id) not in self.seenIds):
+            self.seenIds.append(str(data.id))
             cmd_vel = Twist()
             cmd_vel.linear = data.linear
             cmd_vel.angular = data.angular

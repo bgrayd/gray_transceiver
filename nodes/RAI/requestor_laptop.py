@@ -27,7 +27,7 @@ twist_third_1.angular.z = 0.05
 twist_third_1.seconds = 7
 
 twist_third_2 = twistCommand()
-twist_third_2.angular.x = 1
+twist_third_2.angular.x = 0
 twist_third_2.angular.z = -0.05
 twist_third_2.seconds = 7
 
@@ -45,7 +45,7 @@ class requester(object):
 
     def meta_sub(self, data):
         nameParts = data.name.split("/")
-        firstParts = nameParts[0].split("_")
+        firstParts = nameParts[1].split("_")
         name = firstParts[1]
         self.robotNames.append(name)
 
@@ -83,22 +83,46 @@ class requester(object):
         except rospy.ServiceException, e:
             print "Odom request service call failed: %s"%e
 
-        rate = rospy.Rate(10)
-        while not rospy.is_shutdown() and len(self.robotNames)<1:
+        rate = rospy.Rate(5)
+        while not rospy.is_shutdown() and len(self.robotNames)<3:
             rate.sleep()
 
-
         twist_first.name = self.robotNames[0]
-        twist_second = self.robotNames[0]
-        twist_third_1 = self.robotNames[0]
-        twist_third_2 = self.robotNames[0]
+        twist_second.name = self.robotNames[1]
+        twist_third_1.name = self.robotNames[2]
+        twist_third_2.name = self.robotNames[2]
 
-        self.twistCmd_pub.publish(twist_all)
-        self.twistCmd_pub.publish(twist_wait)
-        self.twistCmd_pub.publish(twist_first)
-        self.twistCmd_pub.publish(twist_second)
-        self.twistCmd_pub.publish(twist_third_1)
-        self.twistCmd_pub.publish(twist_third_2)
+        twist_all.id = "1"
+        twist_wait.id = "1"
+        twist_first.id = "1"
+        twist_second.id = "1"
+        twist_third_1.id = "1"
+        twist_third_2.id = "1"
+
+        for each in range(0,10):
+            self.twistCmd_pub.publish(twist_all)
+            self.twistCmd_pub.publish(twist_wait)
+            self.twistCmd_pub.publish(twist_first)
+            self.twistCmd_pub.publish(twist_second)
+            self.twistCmd_pub.publish(twist_third_1)
+            self.twistCmd_pub.publish(twist_third_2)
+            rate.sleep()
+
+        twist_all.id = "2"
+        twist_wait.id = "2"
+        twist_first.id = "2"
+        twist_second.id = "2"
+        twist_third_1.id = "2"
+        twist_third_2.id = "2"
+
+        for each in range(0,10):
+            self.twistCmd_pub.publish(twist_all)
+            self.twistCmd_pub.publish(twist_wait)
+            self.twistCmd_pub.publish(twist_first)
+            self.twistCmd_pub.publish(twist_second)
+            self.twistCmd_pub.publish(twist_third_1)
+            self.twistCmd_pub.publish(twist_third_2)
+            rate.sleep()
 
 
 
