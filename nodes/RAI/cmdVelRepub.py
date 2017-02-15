@@ -28,7 +28,7 @@ class cmdVelRepub(object):
     def launchGx(self):
         package = "gray_transceiver"
         executable = "gray_transceiver_main.py"
-        nodeNamespace = "/gray_transceiver/"
+        nodeNamespace = "/"
         nodeName = "gray_transceiver_main"
 
         arguments = ""
