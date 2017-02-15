@@ -22,6 +22,7 @@ class cmdVelRepub(object):
 
         self.launch = roslaunch.scriptapi.ROSLaunch()
         self.launch.start()
+        self.launchGx()
         rospy.on_shutdown(self.killGx)
 
     def launchGx(self):
