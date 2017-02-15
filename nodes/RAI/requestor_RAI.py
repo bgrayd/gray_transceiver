@@ -22,8 +22,8 @@ class requester(object):
             offer = rospy.ServiceProxy('gray_transceiver/offers', GxOffer)
             odomOffer = GxTopicMetaInformation()
             odomOffer.description = "kinectCamera"
-            odomOffer.type = "sensor_msgs/Image"
-            resp3 = offer(odomOffer, "/camera/rgb/image_rect_color")
+            odomOffer.type = "sensor_msgs/CompressedImage"
+            resp3 = offer(odomOffer, "/camera/rgb/image_raw/compressed")
         except rospy.ServiceException, e:
             print "Odom offer service call failed: %s"%e
 
