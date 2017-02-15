@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import rospy
+import rospy, roslaunch
 from Queue import *
 from gray_transceiver.msg import GxMetaTopic, twistCommand
 from geometry_msgs.msg import Twist
