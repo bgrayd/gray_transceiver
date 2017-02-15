@@ -50,19 +50,19 @@ class requester(object):
             odomOffer = GxTopicMetaInformation()
             odomOffer.description = "kinectCamera/camera_info"
             odomOffer.type = "sensor_msgs/CameraInfo"
-            resp3 = offer(odomOffer, "/kinectImage/camera_info")
+            #resp3 = offer(odomOffer, "/kinectImage/camera_info")
         except rospy.ServiceException, e:
             print "Odom offer service call failed: %s"%e
 
-        # rospy.wait_for_service('gray_transceiver/requests')
-        # try:
-        #     request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
-        #     odomRequest = GxTopicMetaInformation()
-        #     odomRequest.description = "ODOM"
-        #     odomRequest.type = "nav_msgs/Odometry"
-        #     resp1 = request(odomRequest)
-        # except rospy.ServiceException, e:
-        #     print "Odom request service call failed: %s"%e
+        rospy.wait_for_service('gray_transceiver/requests')
+        try:
+            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
+            odomRequest = GxTopicMetaInformation()
+            odomRequest.description = "move_cmd"
+            odomRequest.type = "gray_transceiver/twistCommand"
+            resp1 = request(odomRequest)
+        except rospy.ServiceException, e:
+            print "Odom request service call failed: %s"%e
 
         rate = rospy.Rate(10)
         while not rospy.is_shutdown():
