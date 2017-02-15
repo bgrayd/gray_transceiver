@@ -5,7 +5,7 @@
 
     <node pkg="gray_transceiver" type="requestor_RAI.py" name="requestor"/>
 
-    <node pkg="gray_transceiver" type="gray_transceiver_main.py" name="gray_transceiver" required="true"/>
+    <!--<node pkg="gray_transceiver" type="gray_transceiver_main.py" name="gray_transceiver" required="true"/>-->
 
     <node pkg="gray_transceiver" type="cmdVelRepub.py" name="cmd_vel_repub" />
 </launch>

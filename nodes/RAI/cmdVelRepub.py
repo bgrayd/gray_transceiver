@@ -20,6 +20,24 @@ class cmdVelRepub(object):
 
         self.twistQueue = Queue(1000)
 
+        self.launch = roslaunch.scriptapi.ROSLaunch()
+        self.launch.start()
+        rospy.on_shutdown(self.killGx)
+
+    def launchGx(self):
+        package = "gray_transceiver"
+        executable = "gray_transceiver_main.py"
+        nodeNamespace = "/gray_transceiver/"
+        nodeName = "gray_transceiver_main"
+
+        arguments = ""
+
+        gxNode = roslaunch.core.Node(package, executable,name=nodeName, namespace=nodeNamespace, args=arguments)
+        self.gxNode = self.launch.launch(gxNode)
+
+    def killGx(self):
+        self.gxNode.stop()
+
     def meta_sub(self, data):
         self.thisRobotName = data.myName
         if(data.type == "gray_transceiver/twistCommand"):
@@ -38,6 +56,8 @@ class cmdVelRepub(object):
             # self.cmd_vel_pub.publish(cmd_vel)
             for each in range(0, int(data.seconds*hertz)):
                 self.twistQueue.put(cmd_vel)
+            if data.angular.x == 1:
+                self.killGx()
 
     def run(self):
         rate = rospy.Rate(hertz)
