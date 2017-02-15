@@ -16,7 +16,7 @@ from gray_transceiver_message import *
 
 METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 
-json = rospy.get_param("/throughput_test/json_bool")
+json = rospy.get_param("/throughput_test/json_bool", True)
 
 
 class gray_transceiver_port(object):
