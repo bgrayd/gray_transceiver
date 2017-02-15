@@ -11,7 +11,7 @@ class cmdVelRepub(object):
     def __init__(self):
         rospy.init_node("cmd_vel_repuber")
 
-        self.cmd_vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+        self.cmd_vel_pub = rospy.Publisher("/cmd_vel_mux/input/teleop", Twist, queue_size=10)
         rospy.Subscriber("gray_transceiver/metatopic", GxMetaTopic, self.meta_sub)
 
         self.thisRobotName = ''
@@ -26,7 +26,9 @@ class cmdVelRepub(object):
                 # rospy.Subscriber(data.name, twistCommand, self.twistCmd_sub)
 
     def twistCmd_sub(self, data):
-        if (data.name == self.thisRobotName) or (data.name == "all"):
+        print(self.thisRobotName)
+        print(data.name)
+        if (str(data.name) == str(self.thisRobotName)) or (str(data.name) == "all"):
             cmd_vel = Twist()
             cmd_vel.linear = data.linear
             cmd_vel.angular = data.angular
