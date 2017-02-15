@@ -31,8 +31,17 @@ class requester(object):
         try:
             request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
             odomRequest = GxTopicMetaInformation()
-            odomRequest.description = "kinectCamera"
-            odomRequest.type = "sensor_msgs/Image"
+            odomRequest.description = "kinectCamera/compressed"
+            odomRequest.type = "sensor_msgs/CompressedImage"
+            resp1 = request(odomRequest)
+        except rospy.ServiceException, e:
+            print "Odom request service call failed: %s"%e
+
+        try:
+            request = rospy.ServiceProxy('gray_transceiver/requests', GxRequest)
+            odomRequest = GxTopicMetaInformation()
+            odomRequest.description = "kinectCamera/camera_info"
+            odomRequest.type = "sensor_msgs/CameraInfo"
             resp1 = request(odomRequest)
         except rospy.ServiceException, e:
             print "Odom request service call failed: %s"%e
