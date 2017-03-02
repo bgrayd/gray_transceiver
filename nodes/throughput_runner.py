@@ -162,7 +162,7 @@ class run(object):
         self.launch = roslaunch.scriptapi.ROSLaunch()
         self.launch.start()
 
-        self.calcFreq = 1
+        self.calcFreq = 100
 
         self.gxNode = None
         self.requestor = None
@@ -241,7 +241,7 @@ class run(object):
 
         line += '\n'
 
-        file1 = open("throughput_test_counts.csv", 'a')
+        file1 = open("throughput_test_counts_2.csv", 'a')
         file1.write(line)
         file1.close()
 

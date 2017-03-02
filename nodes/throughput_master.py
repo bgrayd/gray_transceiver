@@ -8,11 +8,11 @@ import throughput_runner
 
 
 JSON_VALUES = [False]#[True, False]
-COMPUTER_VALUES = [4,3,2]#[2,3,4,5]
-FREQUENCY_VALUES = [10, 20, 30, 50]#[10, 50, 100]#[10,20,30,100,200]
+COMPUTER_VALUES = [5]#[2,3,4,5]
+FREQUENCY_VALUES = [10]#[10, 50, 100]#[10,20,30,100,200]
 BROADCAST_TOPIC_VALUES = [1,2,4,5]
-MESSAGE_SIZE_VALUES = [500, 1000, 3000, 4000, 5000, 6000, 8000]#[1, 100, 2000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
-RUNTIME = 60 #max json is between 21788
+MESSAGE_SIZE_VALUES = [500, 100, 2000]#[1, 100, 2000, 10000, 20000,30000]#[10, 20, 30, 40, 100, 1000, 30000]
+RUNTIME = 50 #max json is between 21788
 
 #still need to run:
 #[True]  [4,3,2]  [10, 20, 30, 50] [1,2,4,5] [500, 1000, 3000, 4000, 5000, 6000, 8000]
@@ -123,10 +123,10 @@ class master(object):
         currentSettings.setRunTime(RUNTIME)
 
         try:
-            file1 = open("throughput_test_counts.csv","r")
+            file1 = open("throughput_test_counts_2.csv","r")
             file1.close()
         except:
-            file2 = open("throughput_test_counts.csv","w")
+            file2 = open("throughput_test_counts_2.csv","w")
             file2.write(currentSettings.getCsvHeader()+"\n")
             file2.close()
 

@@ -67,11 +67,11 @@ class run(object):
     #end the subscribers, bag, and nodes
     def end(self):
         self.stopSubscribers()
-        terminate_process_and_children(self.bagger)
+        #terminate_process_and_children(self.bagger)
         self.makeFile()
 
     def makeFile(self):
-        file1 = open("simTest_counts.csv", "w")
+        file1 = open("phyTest_counts.csv", "a")
         for each in self.columnNames:
             file1.write(str(each))
             file1.write(",")
@@ -85,10 +85,42 @@ class run(object):
 
         file1.close()
 
+    def init_subs(self):
+        pos1 = self.currentIndex
+        self.currentIndex += 1
+        self.messageCounts.append(0)
+        def count_callback(data, messageCounts = self.messageCounts, index = pos1):
+            messageCounts[index] += 1
+
+        myType = roslib.message.get_message_class("sensor_msgs/CompressedImage")
+        self.subscribers.append(rospy.Subscriber("/foreign_44956624131103/kinectCamera/compressed", myType, count_callback))
+        self.columnNames.append("/foreign_44956624131103/kinectCamera/compressed")
+
+        pos2 = self.currentIndex
+        self.currentIndex += 1
+        self.messageCounts.append(0)
+        def count_callback(data, messageCounts = self.messageCounts, index = pos2):
+            messageCounts[index] += 1
+
+        myType = roslib.message.get_message_class("sensor_msgs/CompressedImage")
+        self.subscribers.append(rospy.Subscriber("/foreign_44956619898074/kinectCamera/compressed", myType, count_callback))
+        self.columnNames.append("/foreign_44956619898074/kinectCamera/compressed")
+
+        pos3 = self.currentIndex
+        self.currentIndex += 1
+        self.messageCounts.append(0)
+        def count_callback(data, messageCounts = self.messageCounts, index = pos3):
+            messageCounts[index] += 1
+
+        myType = roslib.message.get_message_class("sensor_msgs/CompressedImage")
+        self.subscribers.append(rospy.Subscriber("/foreign_92526988510936/kinectCamera/compressed", myType, count_callback))
+        self.columnNames.append("/foreign_92526988510936/kinectCamera/compressed")
+
 
     def run(self):
+        self.init_subs()
 
-        countsToWait = 25
+        countsToWait = 1
         count = 0
 
         rate = rospy.Rate(self.calcFreq)
@@ -100,13 +132,17 @@ class run(object):
                 self.messageCounts[each] = 0
             count += 1
 
-        while not rospy.is_shutdown():
+        countsToRun = 200
+        count = 0
+
+        while count < countsToRun:
             rate.sleep()
             newCounts = []
             for each in range(0,self.currentIndex):
                 newCounts.append(self.messageCounts[each])
                 self.messageCounts[each] = 0
             self.messageCountsOld.append(newCounts)
+            count += 1
 
 
         self.end()
