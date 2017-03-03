@@ -23,6 +23,7 @@ class gray_transceiver_port(object):
         rospy.init_node("port")
         self.broadcastTopicsToReceive = []
         self.broadcastTopicsToTransmit = []
+        self.receiveTopic = {}
         self.receiveStarted = False
         self.transmitStarted = False
 
@@ -53,6 +54,8 @@ class gray_transceiver_port(object):
             self.receiveSocket.bind((self.mcast_group, self.port))
         
         self.receiveStarted = True
+
+        self.receiveTopic[str(data.topicMetaInfo)] = data.outputTopic
 
         return GxRequestResponse(True)
 
@@ -112,7 +115,11 @@ class gray_transceiver_port(object):
                     newMsg.name = '/foreign_'+str(newData.getSender())+'/'+str(newData.getDescription())
                     newMsg.type = str(newData.getRosMsgType())
                     msgTypeType = roslib.message.get_message_class(newData.getRosMsgType())
-                    publishers[senderDomain] = rospy.Publisher('/foreign_'+str(newData.getSender())+'/'+str(newData.getDescription()), msgTypeType, queue_size=10)
+
+                    if self.receiveTopic[str(newData.getTopicMetaInformation())] == '':
+                        newMsg.name = self.receiveTopic[str(newData.getTopicMetaInformation())]
+
+                    publishers[senderDomain] = rospy.Publisher(newMsg.name, msgTypeType, queue_size=10)
                     self.metaTopic.publish(newMsg)
                 publishers[senderDomain].publish(newData.getDataAsRosMsg())
                 runningRate.sleep()

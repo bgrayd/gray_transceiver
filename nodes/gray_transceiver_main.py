@@ -26,7 +26,7 @@ MY_NAME = str(MY_MAC_ADDR)
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 OFFER_PARAMETER = rospy.get_param("gray_transceiver/offers", None)
 REQUEST_PARAMETER = rospy.get_param("gray_transceiver/requests", None)
-INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use","wlan0")
+INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use","lo")
 MY_IP_ADDR = subprocess.check_output(["ifconfig", INTERFACE_TO_USE]).split("inet addr:")[1].split(" ")[0]
 
 rospy.set_param("/gray_transceiver/multicast_group", MCAST_GRP)
@@ -79,6 +79,7 @@ class gray_transceiver(object):
         self.threadsLaunched = {}
         self.timers = {}
         self.offersAvailable = {}
+        self.requestsMade = {}
 
         #these are lists that hold GxTopicMetaInformations.  If something is going wrong, such as it not recognizing that it wants a topic, check the comparision against these
         self.desired = []   #broadcast topics (as strings) that you want
@@ -153,7 +154,7 @@ class gray_transceiver(object):
         newPortNumber = self.setUpPort(broadcastTopic)
         rospy.wait_for_service("/gray_transceiver/port"+str(newPortNumber)+"/receive")
         transmitRequest = rospy.ServiceProxy("/gray_transceiver/port"+str(newPortNumber)+"/receive", GxRequest)
-        transmitRequest(broadcastTopic)
+        transmitRequest(broadcastTopic, self.requestsMade[str(broadcastTopic)]["output_topic"])
         self.rxing.append(str(broadcastTopic))  
 
     def requests_callback(self, data):
@@ -179,6 +180,10 @@ class gray_transceiver(object):
 
         self.desired.append(str(newRequest))
 
+        self.requestsMade[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "output_topic":data.outputTopic}
+        print(data.outputTopic == '')
+        print("after")
+
         return GxRequestResponse(True)
 
     def offers_callback(self, data):
@@ -187,6 +192,34 @@ class gray_transceiver(object):
         '''
         self.offersAvailable[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "topicName":data.topicName}
         return GxOfferResponse(True)
+
+    def requests_parameters(self, param):
+        '''
+        This function gets called to set up requests from the parameters
+        '''
+        data = GxRequest._request_class()
+        data.topicMetaInfo.description = param["description"]
+        data.topicMetaInfo.type = param["type"]
+
+        try:
+            data.outputTopic = param["output_topic"]
+        except:
+            data.outputTopic = ""
+
+        if data.outputTopic == None:
+            data.outputTopic = ""
+
+        return self.requests_callback(data)
+
+    def offers_parameters(self, param):
+        '''
+        This function gets called to set up offers from the parameters
+        '''
+        data = GxOffer._request_class()
+        data.topicMetaInfo.description = param["description"]
+        data.topicMetaInfo.type = param["type"]
+        data.topicName = param["topicName"]
+        return self.offers_callback(data)
         
     def run(self):
         global MY_NAME
@@ -196,6 +229,14 @@ class gray_transceiver(object):
         self.debugTopic.publish(temp)
 
         rate = rospy.Rate(30)
+
+        if OFFER_PARAMETER is not None:
+            for each in OFFER_PARAMETER:
+                self.offers_parameters(each)
+
+        if REQUEST_PARAMETER is not None:
+            for each in REQUEST_PARAMETER:
+                self.requests_parameters(each)
         
         while not rospy.is_shutdown():
             if not self.metaSockQ.empty():
