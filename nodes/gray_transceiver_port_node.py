@@ -112,12 +112,12 @@ class gray_transceiver_port(object):
                 if senderDomain not in publishers:
                     newMsg = GxMetaTopic()
                     newMsg.myName = str(self.myName)
-                    newMsg.name = '/foreign_'+str(newData.getSender())+'/'+str(newData.getDescription())
+                    newMsg.name = '/foreign_' + str(newData.getSender()) + '/' + str(newData.getDescription())
                     newMsg.type = str(newData.getRosMsgType())
-                    msgTypeType = roslib.message.get_message_class(newData.getRosMsgType())
+                    msgTypeType = roslib.message.get_message_class( newData.getRosMsgType())
 
-                    if self.receiveTopic[str(newData.getTopicMetaInformation())] != '':
-                        newMsg.name = self.receiveTopic[str(newData.getTopicMetaInformation())]
+                    if self.receiveTopic[ str( newData.getTopicMetaInformation())] != '':
+                        newMsg.name = self.receiveTopic[ str(newData.getTopicMetaInformation())]
 
                     publishers[senderDomain] = rospy.Publisher(newMsg.name, msgTypeType, queue_size=10)
                     self.metaTopic.publish(newMsg)

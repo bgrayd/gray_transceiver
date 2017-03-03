@@ -123,7 +123,7 @@ class gray_transceiver(object):
             package = "gray_transceiver"
             executable = "gray_transceiver_port_node.py"
             nodeNamespace = "/gray_transceiver/"
-            nodeName = "port"+str(newPortNumber)
+            nodeName = "port" + str(newPortNumber)
 
             arguments = ""
             arguments += str(newPortNumber)
@@ -138,9 +138,9 @@ class gray_transceiver(object):
             return
         newPortNumber = self.setUpPort(broadcastTopic)
 
-        rospy.wait_for_service("/gray_transceiver/port"+str(newPortNumber)+"/transmit")
+        rospy.wait_for_service("/gray_transceiver/port" + str(newPortNumber) + "/transmit")
 
-        transmitRequest = rospy.ServiceProxy("/gray_transceiver/port"+str(newPortNumber)+"/transmit", GxOffer)
+        transmitRequest = rospy.ServiceProxy("/gray_transceiver/port" + str(newPortNumber) + "/transmit", GxOffer)
         transmitRequest(broadcastTopic, self.offersAvailable[str(broadcastTopic)]["topicName"])
         self.txing.append(str(broadcastTopic))
 
@@ -148,8 +148,8 @@ class gray_transceiver(object):
         if str(broadcastTopic) in self.rxing:
             return
         newPortNumber = self.setUpPort(broadcastTopic)
-        rospy.wait_for_service("/gray_transceiver/port"+str(newPortNumber)+"/receive")
-        transmitRequest = rospy.ServiceProxy("/gray_transceiver/port"+str(newPortNumber)+"/receive", GxRequest)
+        rospy.wait_for_service("/gray_transceiver/port" + str(newPortNumber) + "/receive")
+        transmitRequest = rospy.ServiceProxy("/gray_transceiver/port" + str(newPortNumber) + "/receive", GxRequest)
         transmitRequest(broadcastTopic, self.requestsMade[str(broadcastTopic)]["output_topic"])
         self.rxing.append(str(broadcastTopic))  
 
@@ -170,9 +170,9 @@ class gray_transceiver(object):
                 sock.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
                 time.sleep(timeSec)
 
-        self.timers["request_"+newRequest.description] = threading.Thread(target=myTimer, args=())
-        self.timers["request_"+newRequest.description].daemon = True
-        self.timers["request_"+newRequest.description].start()
+        self.timers["request_" + newRequest.description] = threading.Thread(target=myTimer, args=())
+        self.timers["request_" + newRequest.description].daemon = True
+        self.timers["request_" + newRequest.description].start()
 
         self.desired.append(str(newRequest))
 
