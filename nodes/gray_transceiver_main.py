@@ -23,11 +23,11 @@ MY_MAC_ADDR = get_mac()
 MCAST_GRP = '224.1.1.1'
 META_PORT = 1025
 MY_NAME = str(MY_MAC_ADDR)
-METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
+METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name", "/gray_transceiver/metatopic")
 OFFER_PARAMETER = rospy.get_param("gray_transceiver/offers", None)
 REQUEST_PARAMETER = rospy.get_param("gray_transceiver/requests", None)
-INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use","lo")
-MY_IP_ADDR = subprocess.check_output(["ifconfig", INTERFACE_TO_USE]).split("inet addr:")[1].split(" ")[0]
+INTERFACE_TO_USE = rospy.get_param("gray_transceiver/interface_to_use", "lo")
+MY_IP_ADDR = subprocess.check_output(["ifconfig", INTERFACE_TO_USE]).split("inet addr:" )[1].split(" ")[0]
 
 rospy.set_param("/gray_transceiver/multicast_group", MCAST_GRP)
 rospy.set_param("/gray_transceiver/ip_to_use", MY_IP_ADDR)
@@ -264,7 +264,7 @@ class gray_transceiver(object):
 
                 #A response to a request of what topics are available
                 elif message.isOffersAck():
-                    for key,data in message.getTopics():
+                    for key, data in message.getTopics():
                         topicOfferMsg = GxTopicMetaInformation()
                         topicOfferMsg.description = key
                         topicOfferMsg.type = data

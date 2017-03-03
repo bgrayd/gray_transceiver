@@ -14,7 +14,7 @@ from gray_transceiver.srv import GxOffer, GxRequest, GxOfferResponse, GxRequestR
 from rospy_message_converter import message_converter, json_message_converter
 from gray_transceiver_message import *
 
-METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
+METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name", "/gray_transceiver/metatopic")
 
 
 class gray_transceiver_port(object):
