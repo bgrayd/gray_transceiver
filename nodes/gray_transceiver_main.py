@@ -72,8 +72,6 @@ class gray_transceiver(object):
 
     def __init__(self):
         rospy.init_node("gray_transceiver")
-        
-        self.debugTopic  = rospy.Publisher("Gx_DEBUG", String, queue_size = 10, latch = True)
 
         self.metaSockQ = Queue(20)
         self.threadsLaunched = {}
@@ -85,9 +83,7 @@ class gray_transceiver(object):
         self.desired = []   #broadcast topics (as strings) that you want
         self.rxing = []     #broadcast topics (as strings) that you are receiving
         self.txing = []     #broacast topics (as strings) that you are transmitting
-
         self.startedPorts = [] #list of the ports that there is something listening on
-
 
         self.messageFactory = GxMessageFactory(name = MY_NAME)
 
@@ -147,7 +143,7 @@ class gray_transceiver(object):
         transmitRequest = rospy.ServiceProxy("/gray_transceiver/port"+str(newPortNumber)+"/transmit", GxOffer)
         transmitRequest(broadcastTopic, self.offersAvailable[str(broadcastTopic)]["topicName"])
         self.txing.append(str(broadcastTopic))
-    
+
     def startReceiving(self, broadcastTopic):
         if str(broadcastTopic) in self.rxing:
             return
@@ -220,13 +216,9 @@ class gray_transceiver(object):
         data.topicMetaInfo.type = param["type"]
         data.topicName = param["topicName"]
         return self.offers_callback(data)
-        
+
     def run(self):
         global MY_NAME
-
-        temp = String()
-        temp.data = "starting"
-        self.debugTopic.publish(temp)
 
         rate = rospy.Rate(30)
 
@@ -237,24 +229,20 @@ class gray_transceiver(object):
         if REQUEST_PARAMETER is not None:
             for each in REQUEST_PARAMETER:
                 self.requests_parameters(each)
-        
+
         while not rospy.is_shutdown():
             if not self.metaSockQ.empty():
                 message = self.messageFactory.fromJSON(self.metaSockQ.get())
 
                 #Someone is asking a broadcast topic to be sent
                 if message.isSend():
-                    temp = String()
-                    temp.data = "in SEND"
-                    self.debugTopic.publish(temp)
-
                     #It is already being transmitted, do nothing
                     if str(message.getTopicMetaInformation()) in self.txing:
                         newMsg = self.messageFactory.newTxingMsg()
                         newMsg.setDescription(message.getDescription())
                         newMsg.setRosMsgType(message.getRosMsgType())
                         self.metaSocket.sendto(newMsg.toJSON(), (MCAST_GRP, META_PORT))
-                    
+
                     #otherwise, if you have the topic, start sending it
                     elif str(message.getTopicMetaInformation()) in self.offersAvailable:
                         self.startTransmitting(message.getTopicMetaInformation())
@@ -266,10 +254,6 @@ class gray_transceiver(object):
 
                 #Someone is saying that they are transmitting a broadcast topic
                 elif message.isTxing():
-                    temp = String()
-                    temp.data = "in TXING"
-                    self.debugTopic.publish(temp)
-
                     #if message["description"] is something you want, make sure it is listened to
                     if str(message.getTopicMetaInformation()) in self.desired:
                         self.startReceiving(message.getTopicMetaInformation())
