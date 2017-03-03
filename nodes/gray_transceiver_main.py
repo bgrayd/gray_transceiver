@@ -177,8 +177,6 @@ class gray_transceiver(object):
         self.desired.append(str(newRequest))
 
         self.requestsMade[str(data.topicMetaInfo)] = {"topicMetaInfo":data.topicMetaInfo, "output_topic":data.outputTopic}
-        print(data.outputTopic == '')
-        print("after")
 
         return GxRequestResponse(True)
 
