@@ -14,7 +14,7 @@ from gray_transceiver.srv import GxOffer, GxRequest, GxOfferResponse, GxRequestR
 from rospy_message_converter import message_converter, json_message_converter
 from gray_transceiver_message import *
 
-METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
+METATOPICNAME = rospy.get_param("/gray_transceiver/metatopic_name", "/gray_transceiver/metatopic")
 
 
 class gray_transceiver_port(object):
@@ -23,6 +23,7 @@ class gray_transceiver_port(object):
         rospy.init_node("port")
         self.broadcastTopicsToReceive = []
         self.broadcastTopicsToTransmit = []
+        self.receiveTopic = {}
         self.receiveStarted = False
         self.transmitStarted = False
 
@@ -53,6 +54,8 @@ class gray_transceiver_port(object):
             self.receiveSocket.bind((self.mcast_group, self.port))
         
         self.receiveStarted = True
+
+        self.receiveTopic[str(data.topicMetaInfo)] = data.outputTopic
 
         return GxRequestResponse(True)
 
@@ -109,10 +112,14 @@ class gray_transceiver_port(object):
                 if senderDomain not in publishers:
                     newMsg = GxMetaTopic()
                     newMsg.myName = str(self.myName)
-                    newMsg.name = '/foreign_'+str(newData.getSender())+'/'+str(newData.getDescription())
+                    newMsg.name = '/foreign_' + str(newData.getSender()) + '/' + str(newData.getDescription())
                     newMsg.type = str(newData.getRosMsgType())
-                    msgTypeType = roslib.message.get_message_class(newData.getRosMsgType())
-                    publishers[senderDomain] = rospy.Publisher('/foreign_'+str(newData.getSender())+'/'+str(newData.getDescription()), msgTypeType, queue_size=10)
+                    msgTypeType = roslib.message.get_message_class( newData.getRosMsgType())
+
+                    if self.receiveTopic[ str( newData.getTopicMetaInformation())] != '':
+                        newMsg.name = self.receiveTopic[ str(newData.getTopicMetaInformation())]
+
+                    publishers[senderDomain] = rospy.Publisher(newMsg.name, msgTypeType, queue_size=10)
                     self.metaTopic.publish(newMsg)
                 publishers[senderDomain].publish(newData.getDataAsRosMsg())
                 runningRate.sleep()
