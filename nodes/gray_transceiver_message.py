@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-import StringIO, struct #for the hopefully smaller serialization
+import StringIO, struct
 import roslib
 from gray_transceiver.msg import GxTopicMetaInformation
 from rospy_message_converter import message_converter, json_message_converter
@@ -174,7 +174,6 @@ class GxDataMsg(GxTopicMetaInfoMsg):
 
         runningBitString = StringIO.StringIO()
 
-        #runningBitString.write(struct.pack('<I%ss'%lengthSender, lengthSender, serializedSender))
         runningBitString.write(struct.pack('<I',positionSender))
         runningBitString.write(struct.pack('<I',positionType))
         runningBitString.write(struct.pack('<I',positionDescription))
@@ -202,12 +201,6 @@ class GxDataMsg(GxTopicMetaInfoMsg):
 
     def getDataAsRosMsg(self):
         return self.data
-
-    #def setData(self, newData):
-    #    self.data = newData
-
-    #def getData(self):
-    #    return self.data
 
     def isData(self):
         return True
@@ -312,4 +305,3 @@ class GxMessageFactory(object):
 
     def newOffersAckMsg(self):
         return GxOffersAckMsg(sender = self.myName)
-
