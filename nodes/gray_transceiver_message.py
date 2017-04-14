@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import json
-import StringIO, struct #for the hopefully smaller serialization
+import StringIO, struct
 import roslib
 from gray_transceiver.msg import GxTopicMetaInformation
 from rospy_message_converter import message_converter, json_message_converter
@@ -33,7 +33,13 @@ class GxBaseMsg(object):
     def toJSON(self):
         return json.dumps(self.toDict())
 
+    def isRequest(self):
+        return False
+
     def isSend(self):
+        return False
+
+    def isIHave(self):
         return False
 
     def isTxing(self):
@@ -83,10 +89,23 @@ class GxTopicMetaInfoMsg(GxBaseMsg):
         data.type = self.rosMsgType
         return data
 
+class GxRequestMsg(GxTopicMetaInfoMsg):
+    def __init__(self, sender=None, description=None, rosMsgType=None):
+        super(GxRequestMsg, self).__init__(sender, "REQUEST", description, rosMsgType)
+
+    def isRequest(self):
+        return True
+
 class GxSendMsg(GxTopicMetaInfoMsg):
     def __init__(self, sender=None, description=None, rosMsgType=None):
         super(GxSendMsg, self).__init__(sender, "SEND", description, rosMsgType)
     def isSend(self):
+        return True
+
+class GxIHaveMsg(GxTopicMetaInfoMsg):
+    def __init__(self, sender=None, description=None, rosMsgType=None):
+        super(GxIHaveMsg, self).__init__(sender, "IHAVE", description, rosMsgType)
+    def isIHave(self):
         return True
 
 class GxTxingMsg(GxTopicMetaInfoMsg):
@@ -227,12 +246,20 @@ class GxMessageFactory(object):
         newMsg = GxBaseMsg()
         newMsg.fromDict(srcDict)
 
-        if srcDict["TYPE"] == "SEND":
+        if srcDict["TYPE"] == "REQUEST":
+            newMsg = GxRequestMsg()
+            newMsg.fromDict(srcDict)
+
+        elif srcDict["TYPE"] == "SEND":
             newMsg = GxSendMsg()
             newMsg.fromDict(srcDict)
             
         elif srcDict["TYPE"] == "TXING":
             newMsg = GxTxingMsg()
+            newMsg.fromDict(srcDict)
+
+        elif srcDict["TYPE"] == "IHAVE":
+            newMsg = GxIHaveMsg()
             newMsg.fromDict(srcDict)
 
         elif srcDict["TYPE"] == "DATA":
@@ -258,11 +285,17 @@ class GxMessageFactory(object):
             print ex
         return toBeReturned
 
+    def newRequestMsg(self):
+        return GxRequestMsg(sender = self.myName)
+
     def newSendMsg(self):
         return GxSendMsg(sender = self.myName)
             
     def newTxingMsg(self):
         return GxTxingMsg(sender = self.myName)
+
+    def newIHaveMsg(self):
+        return GxIHaveMsg(sender = self.myName)
 
     def newDataMsg(self):
         return GxDataMsg(sender = self.myName)
@@ -272,4 +305,3 @@ class GxMessageFactory(object):
 
     def newOffersAckMsg(self):
         return GxOffersAckMsg(sender = self.myName)
-
