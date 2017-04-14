@@ -1,0 +1,3 @@
+<launch>
+   <test test-name="test_gray_transceiver_messages" pkg="gray_transceiver" type="test_gray_transceiver_messages.py" />
+</launch>

@@ -48,18 +48,19 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
   add_message_files(
     FILES
-    GxOffer.msg
-    GxRequest.msg
+    #GxOffer.msg
+    #GxRequest.msg
     GxMetaTopic.msg
-	twistCommand.msg
+    GxTopicMetaInformation.msg
+	  twistCommand.msg
   )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+  add_service_files(
+    FILES
+    GxOffer.srv
+    GxRequest.srv
+  )
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -191,3 +192,7 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+if(CATKIN_ENABLE_TESTING)
+  find_package(rostest REQUIRED)
+  add_rostest(test/test_gray_transceiver_messages.test)
+endif()
