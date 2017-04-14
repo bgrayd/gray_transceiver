@@ -20,8 +20,8 @@ from uuid import getnode as get_mac
 MY_MAC_ADDR = get_mac()
 
 
-MCAST_GRP = '224.1.1.1'
-META_PORT = 1025
+MCAST_GRP = rospy.get_param("gray_transceiver/multicast_group", '224.1.1.1')
+META_PORT = rospy.get_param("gray_transceiver/meta_port", 1025)
 MY_NAME = str(MY_MAC_ADDR)
 METATOPICNAME = rospy.get_param("gray_transceiver/metatopic_name","/gray_transceiver/metatopic")
 OFFER_PARAMETER = rospy.get_param("gray_transceiver/offers", None)
@@ -53,6 +53,7 @@ def hashString(string):
         h = (h << 11) ^ (h >>3) ^ ord(each)
     return h
 
+#TODO: consider returning a negative on errors, so the Gx will keep running and not crash.
 def portHash(description=None, rosMsgType=None):
     hash1 = hashString(description)
     hash2 = hashString(rosMsgType)
